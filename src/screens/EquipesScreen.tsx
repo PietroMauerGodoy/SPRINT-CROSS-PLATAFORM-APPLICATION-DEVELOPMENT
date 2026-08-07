@@ -22,6 +22,7 @@ import NotificacoesBell from '../components/NotificacoesBell';
 import { useNotificacoes } from '../context/NotificacoesContext';
 import { useEquipes } from '../context/EquipesContext';
 import { useKanban } from '../context/KanbanContext';
+import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
 import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
 import perfilLogo from '../../assets/images/perfil_logo.png';
@@ -42,8 +43,9 @@ type Props = {
 };
 
 export default function EquipesScreen({ navigation }: Props) {
-  const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } = useEquipes();
+const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } = useEquipes();
   const { adicionarItem, removerPorEquipeId } = useKanban();
+  const { modoCompacto } = useConfiguracoes();
   const [busca, setBusca]                  = useState('');
   const [rodoviaFiltro, setRodoviaFiltro]  = useState('Todas');
   const [statusFiltro, setStatusFiltro]    = useState<StatusEquipe | 'todas'>('todas');
@@ -246,8 +248,8 @@ export default function EquipesScreen({ navigation }: Props) {
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },
               { icon: 'map-outline',       label: 'Trechos',      onPress: undefined,                                ativo: false },
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                                ativo: false },
-              { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
-              { icon: 'settings-outline',  label: 'Config.',      onPress: undefined,                                ativo: false },
+{ icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
+              { icon: 'settings-outline',  label: 'Config.',      onPress: () => navigation.navigate('Configuracoes'), ativo: false },
             ].map((item) => {
               const hovered = hoverSide === item.label && !item.ativo;
               return (
@@ -362,8 +364,8 @@ export default function EquipesScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {/* Cabeçalho da tabela */}
-            <View style={s.thead}>
+{/* Cabeçalho da tabela */}
+            <View style={[s.thead, modoCompacto && s.theadCompact]}>
               <Text style={[s.th, s.cId]}>ID</Text>
               <Text style={[s.th, s.cEq]}>Equipe</Text>
               <Text style={[s.th, s.cSt]}>Status</Text>
@@ -380,8 +382,8 @@ export default function EquipesScreen({ navigation }: Props) {
                 <Text style={s.emptyTxt}>Nenhuma equipe encontrada</Text>
               </View>
             ) : (
-              paginadas.map((eq, idx) => (
-                <TouchableOpacity key={eq.id} style={[s.trow, idx % 2 === 1 && s.trowAlt]} onPress={() => navigation.navigate('Kanban')} activeOpacity={0.8}>
+paginadas.map((eq, idx) => (
+                <TouchableOpacity key={eq.id} style={[s.trow, idx % 2 === 1 && s.trowAlt, modoCompacto && s.trowCompact]} onPress={() => navigation.navigate('Kanban')} activeOpacity={0.8}>
                   <Text style={[s.tdId, s.cId]}>{eq.id}</Text>
 
                   <View style={[s.cEq, s.cellRow]}>
@@ -642,11 +644,12 @@ const s = StyleSheet.create({
   dropItemTxt:  { fontSize: 13, color: colors.secondary },
   dropItemTxtOn:{ color: colors.primary, fontWeight: '600' },
 
-  // Cabeçalho tabela
+// Cabeçalho tabela
   thead:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)', marginBottom: 4 },
+  theadCompact: { paddingVertical: 4 },
   th:      { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.7 },
 
-  // Linhas — cards brancos flutuantes
+// Linhas — cards brancos flutuantes
   trow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 7,
@@ -658,6 +661,10 @@ const s = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 6,
     elevation: 3,
+  },
+  trowCompact: {
+    paddingVertical: 3,
+    marginBottom: 3,
   },
 
   emptyBox: { alignItems: 'center', paddingVertical: 56 },

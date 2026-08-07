@@ -55,6 +55,7 @@ export type RootStackParamList = {
   Ocorrencias: undefined;
   Equipes: undefined;
   Kanban: undefined;
+  Configuracoes: undefined;
   Cadastro: undefined;
   Detalhe: { ocorrencia: Ocorrencia };
 };

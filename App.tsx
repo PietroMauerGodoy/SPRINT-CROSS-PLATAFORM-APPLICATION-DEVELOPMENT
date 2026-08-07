@@ -5,17 +5,23 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { NotificacoesProvider } from './src/context/NotificacoesContext';
 import { EquipesProvider } from './src/context/EquipesContext';
 import { KanbanProvider } from './src/context/KanbanContext';
+import { ConfiguracoesProvider } from './src/context/ConfiguracoesContext';
+import { ToastProvider } from './src/components/toast/ToastContext';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <NotificacoesProvider>
-        <EquipesProvider>
-          <KanbanProvider>
-            <AppNavigator />
-          </KanbanProvider>
-        </EquipesProvider>
-      </NotificacoesProvider>
+      <ToastProvider>
+        <ConfiguracoesProvider>
+          <NotificacoesProvider>
+            <EquipesProvider>
+              <KanbanProvider>
+                <AppNavigator />
+              </KanbanProvider>
+            </EquipesProvider>
+          </NotificacoesProvider>
+        </ConfiguracoesProvider>
+      </ToastProvider>
     </GestureHandlerRootView>
   );
 }

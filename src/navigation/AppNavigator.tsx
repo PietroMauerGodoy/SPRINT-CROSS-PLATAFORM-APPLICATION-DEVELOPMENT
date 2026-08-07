@@ -6,6 +6,7 @@ import EquipesScreen from '../screens/EquipesScreen';
 import OcorrenciasScreen from '../screens/OcorrenciasScreen';
 import DetalheScreen from '../screens/DetalheScreen';
 import KanbanScreen from '../screens/KanbanScreen';
+import ConfiguracoesScreen from '../screens/ConfiguracoesScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -19,8 +20,9 @@ export default function AppNavigator() {
         <Stack.Screen name="Login"       component={LoginScreen}       />
         <Stack.Screen name="Equipes"     component={EquipesScreen}     />
         <Stack.Screen name="Kanban"      component={KanbanScreen}      />
-        <Stack.Screen name="Ocorrencias" component={OcorrenciasScreen} />
+<Stack.Screen name="Ocorrencias" component={OcorrenciasScreen} />
         <Stack.Screen name="Detalhe"     component={DetalheScreen}     />
+        <Stack.Screen name="Configuracoes" component={ConfiguracoesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

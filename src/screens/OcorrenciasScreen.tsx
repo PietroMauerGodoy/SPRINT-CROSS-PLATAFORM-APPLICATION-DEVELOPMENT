@@ -18,6 +18,8 @@ import NotificacoesBell from '../components/NotificacoesBell';
 import { colors } from '../theme';
 import { Ocorrencia, RiscoNivel, RootStackParamList } from '../types';
 import { mockOcorrencias } from '../data/mockData';
+import { useNotificacoes } from '../context/NotificacoesContext';
+import { useConfiguracoes } from '../context/ConfiguracoesContext';
 
 import bgRoxo    from '../../assets/images/backgroundroxo.png';
 import logoNeg   from '../../assets/images/Motiva_Logo-Negativo.png';
@@ -42,6 +44,8 @@ const STATUS_OPTS: { label: string; value: Ocorrencia['status'] | 'todos' }[] = 
 ];
 
 export default function OcorrenciasScreen({ navigation }: Props) {
+  const { adicionarNotificacao } = useNotificacoes();
+  const { notifPrefs } = useConfiguracoes();
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>(mockOcorrencias);
   const [busca, setBusca]             = useState('');
   const [riscoFiltro, setRiscoFiltro] = useState<RiscoNivel | 'todos'>('todos');
@@ -103,8 +107,18 @@ export default function OcorrenciasScreen({ navigation }: Props) {
       data:        new Date().toISOString().split('T')[0],
       responsavel: fResponsavel.trim() || undefined,
     };
-    setOcorrencias((prev) => [nova, ...prev]);
+setOcorrencias((prev) => [nova, ...prev]);
     setModalCriar(false);
+
+    // Só dispara notificação de ocorrência crítica se a preferência estiver ativa
+    if (nova.risco === 'alto' && notifPrefs.novaOcorrenciaCritica) {
+      adicionarNotificacao({
+        cor:   '#EF4444',
+        icone: 'warning-outline',
+        titulo: 'Nova ocorrência crítica',
+        desc:  `${nova.titulo} — ${nova.local}`,
+      });
+    }
   }
 
   return (
@@ -152,8 +166,8 @@ export default function OcorrenciasScreen({ navigation }: Props) {
               { icon: 'warning-outline',   label: 'Ocorrências', ativo: true,  onPress: undefined },
               { icon: 'map-outline',       label: 'Trechos',     ativo: false, onPress: undefined },
               { icon: 'calendar-outline',  label: 'Planejamento',ativo: false, onPress: undefined },
-              { icon: 'bar-chart-outline', label: 'Relatórios',  ativo: false, onPress: undefined },
-              { icon: 'settings-outline',  label: 'Config.',     ativo: false, onPress: undefined },
+{ icon: 'bar-chart-outline', label: 'Relatórios',  ativo: false, onPress: undefined },
+              { icon: 'settings-outline',  label: 'Config.',     ativo: false, onPress: () => navigation.navigate('Configuracoes') },
             ].map((item) => (
               <TouchableOpacity
                 key={item.label}

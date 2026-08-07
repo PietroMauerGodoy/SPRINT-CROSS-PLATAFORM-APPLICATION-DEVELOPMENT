@@ -19,6 +19,7 @@ import { KanbanItem, RootStackParamList, SeveridadeVegetacao } from '../types';
 import { useNotificacoes } from '../context/NotificacoesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
+import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import NotificacoesBell from '../components/NotificacoesBell';
 
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
@@ -95,8 +96,9 @@ function getIA(item: KanbanItem): { texto: string; cor: string } {
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Kanban'> };
 
 export default function KanbanScreen({ navigation }: Props) {
-  const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparColunaCtx } = useKanban();
+const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparColunaCtx } = useKanban();
   const { setStatusEquipe } = useEquipes();
+  const { modoCompacto } = useConfiguracoes();
   const [rodoviaFiltro, setRodoviaFiltro] = useState('Todas');
   const [dropRodovia, setDropRodovia] = useState(false);
 
@@ -454,8 +456,8 @@ export default function KanbanScreen({ navigation }: Props) {
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },
               { icon: 'map-outline',       label: 'Trechos',      onPress: undefined,                                ativo: false },
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                                ativo: false },
-              { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
-              { icon: 'settings-outline',  label: 'Config.',      onPress: undefined,                                ativo: false },
+{ icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
+              { icon: 'settings-outline',  label: 'Config.',      onPress: () => navigation.navigate('Configuracoes'), ativo: false },
             ].map((item) => {
               const hov = hoverSide === item.label && !item.ativo;
               return (
@@ -572,12 +574,12 @@ export default function KanbanScreen({ navigation }: Props) {
                       const rodCor = RODOVIA_COR[item.rodovia] ?? '#6366F1';
 
                       return (
-                        <View
+<View
                           key={item.id}
-                          style={[s.card, isDragging && s.cardDragging]}
+                          style={[s.card, isDragging && s.cardDragging, modoCompacto && s.cardCompact]}
                           {...({
                             onMouseDown: (e: any) => handleCardPointerDown(e, item),
-                            style: [s.card, isDragging && s.cardDragging, { cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }],
+                            style: [s.card, isDragging && s.cardDragging, modoCompacto && s.cardCompact, { cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }],
                           } as any)}
                         >
                           {/* Color label strips (Trello-style) */}
@@ -1122,7 +1124,8 @@ const s = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardDragging: { opacity: 0.3 },
+cardDragging: { opacity: 0.3 },
+  cardCompact:  { paddingVertical: 2 },
   cardLabels:   { flexDirection: 'row', height: 5, borderTopLeftRadius: 10, borderTopRightRadius: 10, overflow: 'hidden' },
   labelStrip:   { flex: 1, height: 5 },
   cardBody:     { padding: 10 },
