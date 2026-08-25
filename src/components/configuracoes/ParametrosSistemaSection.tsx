@@ -79,14 +79,30 @@ export default function ParametrosSistemaSection() {
   }
 
   function salvar() {
-    validarFrequencia(frequenciaReavaliacao);
-    validarLimite(limiteCriticidade);
-    if (erroFreq || erroLimite || !totalOk) {
+    const freqAtual = frequenciaReavaliacao;
+    const limiteAtual = limiteCriticidade;
+    const erroFreqAtual = (() => {
+      if (freqAtual === '') return 'Informe um valor.';
+      const num = Number(freqAtual);
+      if (isNaN(num) || num < 0) return 'Informe um número válido (≥ 0).';
+      return null;
+    })();
+    const erroLimiteAtual = (() => {
+      if (limiteAtual === '') return 'Informe um valor.';
+      const num = Number(limiteAtual);
+      if (isNaN(num) || num < 0 || num > 100) return 'Informe um valor entre 0 e 100.';
+      return null;
+    })();
+
+    setErroFreq(erroFreqAtual);
+    setErroLimite(erroLimiteAtual);
+
+    if (erroFreqAtual || erroLimiteAtual || !totalOk) {
       showToast('Corrija os valores antes de salvar.', 'error');
       return;
     }
     registrarAtividade(
-      `Atualizou parâmetros de criticidade (pesos ${pesoManutencao}/${pesoClima}/${pesoCrescimento}, frequência ${frequenciaReavaliacao}d, limite ${limiteCriticidade}%)`,
+      `Atualizou parâmetros de criticidade (pesos ${pesoManutencao}/${pesoClima}/${pesoCrescimento}, frequência ${freqAtual}d, limite ${limiteAtual}%)`,
     );
     showToast('Parâmetros salvos com sucesso!');
   }

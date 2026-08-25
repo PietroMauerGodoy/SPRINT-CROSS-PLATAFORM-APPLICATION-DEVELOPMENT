@@ -14,16 +14,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import OcorrenciaCard from '../components/OcorrenciaCard';
+import AppHeader from '../components/AppHeader';
 import NotificacoesBell from '../components/NotificacoesBell';
 import { colors } from '../theme';
 import { Ocorrencia, RiscoNivel, RootStackParamList } from '../types';
-import { mockOcorrencias } from '../data/mockData';
 import { useNotificacoes } from '../context/NotificacoesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
+import { useOcorrencias } from '../context/OcorrenciasContext';
 
 import bgRoxo    from '../../assets/images/backgroundroxo.png';
-import logoNeg   from '../../assets/images/Motiva_Logo-Negativo.png';
-import perfilLogo from '../../assets/images/perfil_logo.png';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Ocorrencias'>;
@@ -46,13 +45,14 @@ const STATUS_OPTS: { label: string; value: Ocorrencia['status'] | 'todos' }[] = 
 export default function OcorrenciasScreen({ navigation }: Props) {
   const { adicionarNotificacao } = useNotificacoes();
   const { notifPrefs } = useConfiguracoes();
-  const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>(mockOcorrencias);
+  const { ocorrencias, adicionarOcorrencia } = useOcorrencias();
   const [busca, setBusca]             = useState('');
   const [riscoFiltro, setRiscoFiltro] = useState<RiscoNivel | 'todos'>('todos');
   const [statusFiltro, setStatusFiltro] = useState<Ocorrencia['status'] | 'todos'>('todos');
   const [dropRisco, setDropRisco]     = useState(false);
   const [dropStatus, setDropStatus]   = useState(false);
   const [sidebarAberta, setSidebarAberta] = useState(true);
+  const [showLogout, setShowLogout] = useState(false);
 
   // Cadastro
   const [modalCriar, setModalCriar]   = useState(false);
@@ -91,67 +91,56 @@ export default function OcorrenciasScreen({ navigation }: Props) {
     setModalCriar(true);
   }
 
-  function handleSalvar() {
+ async function handleSalvar() {
     if (!fTitulo.trim() || !fLocal.trim() || !fCategoria.trim()) {
       Alert.alert('Atenção', 'Preencha os campos obrigatórios: título, local e categoria.');
       return;
     }
-    const nova: Ocorrencia = {
-      id:          ocorrencias.length + 1,
-      titulo:      fTitulo.trim(),
-      descricao:   fDescricao.trim(),
-      local:       fLocal.trim(),
-      categoria:   fCategoria.trim(),
-      risco:       fRisco,
-      status:      'aberta',
-      data:        new Date().toISOString().split('T')[0],
-      responsavel: fResponsavel.trim() || undefined,
-    };
-setOcorrencias((prev) => [nova, ...prev]);
-    setModalCriar(false);
 
-    // Só dispara notificação de ocorrência crítica se a preferência estiver ativa
-    if (nova.risco === 'alto' && notifPrefs.novaOcorrenciaCritica) {
-      adicionarNotificacao({
-        cor:   '#EF4444',
-        icone: 'warning-outline',
-        titulo: 'Nova ocorrência crítica',
-        desc:  `${nova.titulo} — ${nova.local}`,
-      });
-    }
-  }
+   const novaId = await adicionarOcorrencia({
+     titulo: fTitulo.trim(),
+     descricao: fDescricao.trim(),
+     local: fLocal.trim(),
+     categoria: fCategoria.trim(),
+     risco: fRisco,
+     status: 'aberta',
+     data: new Date().toISOString().split('T')[0],
+     responsavel: fResponsavel.trim() || undefined,
+   });
+
+   const nova: Ocorrencia = {
+     id: novaId,
+     titulo: fTitulo.trim(),
+     descricao: fDescricao.trim(),
+     local: fLocal.trim(),
+     categoria: fCategoria.trim(),
+     risco: fRisco,
+     status: 'aberta',
+     data: new Date().toISOString().split('T')[0],
+     responsavel: fResponsavel.trim() || undefined,
+   };
+   setModalCriar(false);
+
+   if (nova.risco === 'alto' && notifPrefs.novaOcorrenciaCritica) {
+     adicionarNotificacao({
+       cor: '#EF4444',
+       icone: 'warning-outline',
+       titulo: 'Nova ocorrência crítica',
+       desc: `${nova.titulo} — ${nova.local}`,
+     });
+   }
+ }
 
   return (
     <View style={s.root}>
       <ImageBackground source={bgRoxo} style={StyleSheet.absoluteFill} resizeMode="cover" imageStyle={s.bgFill} />
 
-      {/* Header */}
-      <View style={s.header}>
-        <View style={s.hLeft}>
-          <Image source={logoNeg} style={s.hLogo} resizeMode="contain" />
-          <TouchableOpacity onPress={() => setSidebarAberta((v) => !v)}>
-            <Ionicons name="menu" size={22} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
-        </View>
-        <View style={s.hRight}>
-          <View style={s.hIconPill}>
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="sunny-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <View style={s.hPillBtn}>
-              <NotificacoesBell panelTop={54} panelRight={72} />
-            </View>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="settings-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={s.hAvatar}>
-            <Image source={perfilLogo} style={s.hAvatarImg} resizeMode="cover" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader
+        title="Ocorrências"
+        onMenuPress={() => setSidebarAberta((v) => !v)}
+        onSettingsPress={() => navigation.navigate('Configuracoes')}
+        onLogoutPress={() => setShowLogout(true)}
+      />
 
       {/* Body */}
       <View style={s.body}>
@@ -396,6 +385,30 @@ setOcorrencias((prev) => [nova, ...prev]);
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showLogout} transparent animationType="fade">
+        <View style={s.overlay}>
+          <View style={s.delCard}>
+            <View style={[s.delIconBox, { backgroundColor: '#EDE9FE' }]}>
+              <Ionicons name="log-out-outline" size={26} color={colors.primary} />
+            </View>
+            <Text style={s.delTitulo}>Encerrar sessão</Text>
+            <Text style={s.delDesc}>{'Tem certeza que deseja sair?\nVocê será redirecionado para o login.'}</Text>
+            <View style={s.delBtns}>
+              <TouchableOpacity style={s.delBtnCancel} onPress={() => setShowLogout(false)}>
+                <Text style={s.delBtnCancelTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => {
+                setShowLogout(false);
+                navigation.replace('Login');
+              }}>
+                <Ionicons name="log-out-outline" size={14} color="#fff" />
+                <Text style={s.delBtnConfirmTxt}>Sair</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -425,6 +438,16 @@ const s = StyleSheet.create({
   mBtnCancelTxt:  { color: '#64748B', fontWeight: '500', fontSize: 13 },
   mBtnSave:       { flex: 1, paddingVertical: 11, borderRadius: 8, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   mBtnSaveTxt:    { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  delCard:        { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 370, alignItems: 'center' },
+  delIconBox:     { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  delTitulo:      { fontSize: 18, fontWeight: '700', color: colors.secondary, marginBottom: 6 },
+  delDesc:        { fontSize: 13, color: '#475569', textAlign: 'center', lineHeight: 20, marginBottom: 18 },
+  delBtns:        { flexDirection: 'row', width: '100%' },
+  delBtnCancel:   { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', paddingVertical: 11, alignItems: 'center', marginRight: 10 },
+  delBtnCancelTxt:{ color: '#475569', fontWeight: '600', fontSize: 13 },
+  delBtnConfirm:  { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  delBtnConfirmTxt:{ color: '#fff', fontWeight: '700', fontSize: 13 },
 
   // Header
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingVertical: 10, zIndex: 10 },

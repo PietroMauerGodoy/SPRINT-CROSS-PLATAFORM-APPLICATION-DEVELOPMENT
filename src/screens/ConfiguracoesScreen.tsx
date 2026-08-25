@@ -14,8 +14,8 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../theme';
 import { RootStackParamList } from '../types';
+import AppHeader from '../components/AppHeader';
 
-import NotificacoesBell from '../components/NotificacoesBell';
 import PerfilSection from '../components/configuracoes/PerfilSection';
 import PreferenciasSection from '../components/configuracoes/PreferenciasSection';
 import NotificacoesSection from '../components/configuracoes/NotificacoesSection';
@@ -24,9 +24,7 @@ import ParametrosSistemaSection from '../components/configuracoes/ParametrosSist
 import IntegracoesSection from '../components/configuracoes/IntegracoesSection';
 import DadosSistemaSection from '../components/configuracoes/DadosSistemaSection';
 
-import bgRoxo     from '../../assets/images/backgroundroxo.png';
-import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
-import perfilLogo from '../../assets/images/perfil_logo.png';
+import bgRoxo from '../../assets/images/backgroundroxo.png';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Configuracoes'>;
@@ -42,37 +40,12 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
       {/* ── BACKGROUND ROXO ──────────────────────────────────────────────── */}
       <ImageBackground source={bgRoxo} style={StyleSheet.absoluteFill} resizeMode="cover" imageStyle={s.bgFill} />
 
-      {/* ── HEADER ───────────────────────────────────────────────────────── */}
-      <View style={s.header}>
-        <View style={s.hLeft}>
-          <Image source={logoNeg} style={s.hLogo} resizeMode="contain" />
-          <TouchableOpacity onPress={() => setSidebarAberta((v) => !v)}>
-            <Ionicons name="menu" size={22} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
-        </View>
-        <View style={s.hRight}>
-          <View style={s.hIconPill}>
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="sunny-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <View style={s.hPillBtn}>
-              <NotificacoesBell panelTop={54} panelRight={72} />
-            </View>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="settings-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn} onPress={() => setShowLogout(true)}>
-              <MaterialIcons name="logout" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={s.hAvatar}>
-            <Image source={perfilLogo} style={s.hAvatarImg} resizeMode="cover" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader
+        title="Configurações"
+        onMenuPress={() => setSidebarAberta((v) => !v)}
+        onSettingsPress={() => navigation.navigate('Configuracoes')}
+        onLogoutPress={() => setShowLogout(true)}
+      />
 
       {/* ── BODY ─────────────────────────────────────────────────────────── */}
       <View style={s.body}>

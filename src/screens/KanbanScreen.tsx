@@ -11,6 +11,7 @@ import {
   Modal,
   Alert,
   ImageBackground,
+  PanResponder,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,7 +21,7 @@ import { useNotificacoes } from '../context/NotificacoesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
-import NotificacoesBell from '../components/NotificacoesBell';
+import AppHeader from '../components/AppHeader';
 
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
 import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
@@ -169,112 +170,56 @@ const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparCo
     input.click();
   }
 
-  // ── Drag & Drop ──────────────────────────────────────────────────────────
-  // Threshold: move < 6px = click, move ≥ 6px = arrasta card
-  function handleCardPointerDown(e: any, item: KanbanItem) {
-    if (e.button !== 0) return;
-    e.stopPropagation();
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    let dragActive = false;
-    let rafId: number | null = null;
-
-    // Coleta rects dos refs React (confiável em RN Web)
-    const cols = COLUNAS.map((col) => {
+  // ── Drag & Drop (cross-platform, sem DOM/browser APIs) ─────────────────
+  function getColumnIdAtPoint(x: number, y: number): string | null {
+    for (const col of COLUNAS) {
       const node = colRefs.current[col.id];
-      const rect: DOMRect | null = node?.getBoundingClientRect?.() ?? null;
-      return { col, rect };
-    });
+      if (!node) continue;
 
-    function getColRects() {
-      return COLUNAS.map((col) => {
-        const node = colRefs.current[col.id];
-        const rect: DOMRect | null = node?.getBoundingClientRect?.() ?? null;
-        return { col, rect };
+      let rect: any = null;
+      node.measureInWindow((pageX: number, pageY: number, width: number, height: number) => {
+        rect = { x: pageX, y: pageY, width, height };
       });
+
+      if (rect && x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height) {
+        return col.id;
+      }
     }
 
-    function hitCol(x: number, y: number, rects = cols) {
-      return rects.find(({ rect }) =>
-        rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
-      ) ?? null;
-    }
+    return null;
+  }
 
-    function createGhost() {
-      const sc = sevCor(item.severidade);
-      const g = (document as any).createElement('div');
-      g.innerHTML = `
-        <div style="font-size:13px;font-weight:700;color:#1E293B;margin-bottom:3px">${item.nomeEquipe}</div>
-        <div style="font-size:11px;color:#64748B">${item.rodovia} · KM ${item.kmInicio}.0 → ${item.kmFim}.0</div>
-        <div style="font-size:10px;color:#94A3B8;margin-top:2px">${item.tipoVegetacao}</div>
-      `;
-      g.style.cssText = [
-        'position:fixed', 'top:0', 'left:0', 'width:264px',
-        `transform:translate(${startX - 132}px,${startY - 44}px) rotate(2deg) scale(1.04)`,
-        'background:#fff', 'border-radius:10px', 'padding:12px 14px 10px',
-        `border-top:4px solid ${sc}`,
-        'box-shadow:0 20px 56px rgba(0,0,0,0.28)',
-        'pointer-events:none', 'z-index:99999', 'opacity:0.95',
-        'font-family:system-ui,sans-serif',
-        'will-change:transform', 'transition:none',
-      ].join(';');
-      (document as any).body.appendChild(g);
-      ghostRef.current = g;
-    }
-
-    function onMouseMove(me: MouseEvent) {
-      const dx = me.clientX - startX;
-      const dy = me.clientY - startY;
-
-      if (!dragActive && Math.sqrt(dx * dx + dy * dy) > 6) {
-        dragActive = true;
-        wasDragging.current = true;
-        createGhost();
+  function createCardPanResponder(item: KanbanItem) {
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 8 || Math.abs(gestureState.dy) > 8,
+      onPanResponderGrant: () => {
         setDraggingId(item.id);
-      }
+        setDragOverCol(null);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) <= 6 && Math.abs(gestureState.dy) <= 6) return;
+        const targetColId = getColumnIdAtPoint(gestureState.moveX, gestureState.moveY);
+        setDraggingId(item.id);
+        setDragOverCol(targetColId);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const movedEnough = Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
+        const targetColId = getColumnIdAtPoint(gestureState.moveX, gestureState.moveY);
 
-      if (dragActive && ghostRef.current) {
-        if (rafId !== null) cancelAnimationFrame(rafId);
-        const cx = me.clientX;
-        const cy = me.clientY;
-        rafId = requestAnimationFrame(() => {
-          if (ghostRef.current) {
-            ghostRef.current.style.transform =
-              `translate(${cx - 132}px,${cy - 44}px) rotate(2deg) scale(1.04)`;
-          }
-          setDragOverCol(hitCol(cx, cy)?.col.id ?? null);
-        });
-      }
-    }
-
-    function onMouseUp(ue: MouseEvent) {
-      (document as any).removeEventListener('mousemove', onMouseMove);
-      (document as any).removeEventListener('mouseup', onMouseUp);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-
-      if (dragActive) {
-        if (ghostRef.current) {
-          (document as any).body.removeChild(ghostRef.current);
-          ghostRef.current = null;
-        }
-        const over = hitCol(ue.clientX, ue.clientY, getColRects());
-        if (over) {
-          const targetSev: SeveridadeVegetacao = over.col.severidade ?? 'sem_ocorrencia';
+        if (movedEnough && targetColId) {
+          const targetColumn = COLUNAS.find((col) => col.id === targetColId);
+          const targetSev: SeveridadeVegetacao = targetColumn?.severidade ?? 'sem_ocorrencia';
           setNovaAltura(String(item.alturaAtual));
           setModalAltura({ item, targetSev });
+        } else if (!movedEnough) {
+          setMenuCard(null);
+          abrirDetalhe(item);
         }
+
         setDraggingId(null);
         setDragOverCol(null);
-        setTimeout(() => { wasDragging.current = false; }, 80);
-      } else {
-        setMenuCard(null);
-        abrirDetalhe(item);
-      }
-    }
-
-    (document as any).addEventListener('mousemove', onMouseMove);
-    (document as any).addEventListener('mouseup', onMouseUp);
+      },
+    });
   }
 
   // ── Confirmação de altura ao arrastar ─────────────────────────────────────
@@ -411,37 +356,12 @@ const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparCo
     <View style={s.root}>
       <ImageBackground source={bgRoxo} style={StyleSheet.absoluteFill} resizeMode="cover" imageStyle={s.bgFill} />
 
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <View style={s.header}>
-        <View style={s.hLeft}>
-          <Image source={logoNeg} style={s.hLogo} resizeMode="contain" />
-          <TouchableOpacity onPress={() => setSidebarAberta((v) => !v)}>
-            <Ionicons name="menu" size={22} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
-        </View>
-        <View style={s.hRight}>
-          <View style={s.hIconPill}>
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="sunny-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <View style={s.hPillBtn}>
-              <NotificacoesBell panelTop={54} panelRight={72} />
-            </View>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="settings-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn} onPress={() => setShowLogout(true)}>
-              <MaterialIcons name="logout" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={s.hAvatar}>
-            <Image source={perfilLogo} style={s.hAvatarImg} resizeMode="cover" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader
+        title="Visibilidade das Equipes"
+        onMenuPress={() => setSidebarAberta((v) => !v)}
+        onSettingsPress={() => navigation.navigate('Configuracoes')}
+        onLogoutPress={() => setShowLogout(true)}
+      />
 
       {/* ── BODY ───────────────────────────────────────────────────────────── */}
       <View style={s.body}>
@@ -574,13 +494,10 @@ const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparCo
                       const rodCor = RODOVIA_COR[item.rodovia] ?? '#6366F1';
 
                       return (
-<View
+                        <View
                           key={item.id}
                           style={[s.card, isDragging && s.cardDragging, modoCompacto && s.cardCompact]}
-                          {...({
-                            onMouseDown: (e: any) => handleCardPointerDown(e, item),
-                            style: [s.card, isDragging && s.cardDragging, modoCompacto && s.cardCompact, { cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }],
-                          } as any)}
+                          {...createCardPanResponder(item).panHandlers}
                         >
                           {/* Color label strips (Trello-style) */}
                           <View style={s.cardLabels}>

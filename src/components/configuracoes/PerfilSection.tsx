@@ -98,24 +98,31 @@ export default function PerfilSection() {
       <View style={styles.perfilRow}>
         <View style={styles.avatarWrap}>
           <Image source={avatarPreview ? { uri: avatarPreview } : perfilLogo} style={styles.avatar} resizeMode="cover" />
-          <TouchableOpacity style={styles.avatarEdit} activeOpacity={0.8}>
-            {Platform.OS === 'web' ? (
-              <>
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  id="avatar-upload"
-                  onChange={handleAvatarUpload}
-                />
-                <label htmlFor="avatar-upload" style={styles.avatarEditLabel}>
-                  <Ionicons name="camera" size={11} color="#fff" />
-                </label>
-              </>
-            ) : (
+          {Platform.OS === 'web' ? (
+            <>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="avatar-upload"
+                onChange={handleAvatarUpload}
+              />
+              <TouchableOpacity
+                style={styles.avatarEdit}
+                activeOpacity={0.8}
+                onPress={() => {
+                  const input = document.getElementById('avatar-upload') as HTMLInputElement | null;
+                  input?.click();
+                }}
+              >
+                <Ionicons name="camera" size={11} color="#fff" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.avatarEdit} activeOpacity={0.8}>
               <Ionicons name="camera" size={11} color="#fff" />
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.perfilInfo}>
           <Text style={styles.perfilNome}>{nome.trim() || 'Seu nome'}</Text>

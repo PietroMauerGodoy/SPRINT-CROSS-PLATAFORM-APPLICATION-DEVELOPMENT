@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import StatusBadge from '../components/StatusBadge';
+import AppHeader from '../components/AppHeader';
 import { colors } from '../theme';
 import { Equipe, RootStackParamList, StatusEquipe } from '../types';
 
@@ -199,41 +200,12 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
       {/* ── BACKGROUND ROXO ──────────────────────────────────────────────── */}
       <ImageBackground source={bgRoxo} style={StyleSheet.absoluteFill} resizeMode="cover" imageStyle={s.bgFill} />
 
-      {/* ── HEADER ───────────────────────────────────────────────────────── */}
-      <View style={s.header}>
-        {/* Logo + menu */}
-        <View style={s.hLeft}>
-          <Image source={logoNeg} style={s.hLogo} resizeMode="contain" />
-          <TouchableOpacity onPress={() => setSidebarAberta((v) => !v)}>
-            <Ionicons name="menu" size={22} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Ícones agrupados em pill + avatar */}
-        <View style={s.hRight}>
-          <View style={s.hIconPill}>
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="sunny-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <View style={s.hPillBtn}>
-              <NotificacoesBell panelTop={54} panelRight={72} />
-            </View>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="settings-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn} onPress={handleLogout}>
-              <MaterialIcons name="logout" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={s.hAvatar}>
-            <Image source={perfilLogo} style={s.hAvatarImg} resizeMode="cover" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader
+        title="Gerenciamento de Equipes"
+        onMenuPress={() => setSidebarAberta((v) => !v)}
+        onSettingsPress={() => navigation.navigate('Configuracoes')}
+        onLogoutPress={handleLogout}
+      />
 
       {/* ── BODY ─────────────────────────────────────────────────────────── */}
       <View style={s.body}>

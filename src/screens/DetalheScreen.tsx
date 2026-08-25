@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../theme';
+import { useOcorrencias } from '../context/OcorrenciasContext';
 import { Ocorrencia, RiscoNivel, RootStackParamList } from '../types';
 
 import bgRoxo from '../../assets/images/backgroundroxo.png';
@@ -58,16 +58,16 @@ function formatarData(data: string) {
 }
 
 export default function DetalheScreen({ navigation, route }: Props) {
-  const { ocorrencia: ocorrenciaInicial } = route.params;
-  const [ocorrencia, setOcorrencia] = useState<Ocorrencia>(ocorrenciaInicial);
+  const { buscarPorId, atualizarOcorrencia } = useOcorrencias();
+  const ocorrencia = buscarPorId(route.params.ocorrencia.id) ?? route.params.ocorrencia;
 
   const risco  = riscoCor(ocorrencia.risco);
   const status = statusCor(ocorrencia.status);
 
-  function avancarStatus() {
+  async function avancarStatus() {
     const idx = STATUS_CICLO.indexOf(ocorrencia.status);
     const proximo = STATUS_CICLO[(idx + 1) % STATUS_CICLO.length];
-    setOcorrencia((prev) => ({ ...prev, status: proximo }));
+    await atualizarOcorrencia(ocorrencia.id, { status: proximo });
   }
 
   return (

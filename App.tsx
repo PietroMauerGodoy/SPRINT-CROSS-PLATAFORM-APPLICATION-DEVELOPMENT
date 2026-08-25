@@ -6,6 +6,7 @@ import { NotificacoesProvider } from './src/context/NotificacoesContext';
 import { EquipesProvider } from './src/context/EquipesContext';
 import { KanbanProvider } from './src/context/KanbanContext';
 import { ConfiguracoesProvider } from './src/context/ConfiguracoesContext';
+import { OcorrenciasProvider } from './src/context/OcorrenciasContext';
 import { ToastProvider } from './src/components/toast/ToastContext';
 
 export default function App() {
@@ -16,7 +17,9 @@ export default function App() {
           <NotificacoesProvider>
             <EquipesProvider>
               <KanbanProvider>
-                <AppNavigator />
+                <OcorrenciasProvider>
+                  <AppNavigator />
+                </OcorrenciasProvider>
               </KanbanProvider>
             </EquipesProvider>
           </NotificacoesProvider>

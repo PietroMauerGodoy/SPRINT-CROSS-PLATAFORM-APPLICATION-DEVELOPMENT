@@ -1,6 +1,9 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { KanbanItem, SeveridadeVegetacao } from '../types';
 import { mockKanban } from '../data/mockData';
+
+const STORAGE_KEY = '@motiva:kanban';
 
 type KanbanContextType = {
   itens:              KanbanItem[];
@@ -15,11 +18,49 @@ type KanbanContextType = {
 const KanbanContext = createContext<KanbanContextType | null>(null);
 
 export function KanbanProvider({ children }: { children: ReactNode }) {
-  const [itens, setItens] = useState<KanbanItem[]>(mockKanban);
-  let nextNum = itens.length + 1;
+  const [itens, setItens] = useState<KanbanItem[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function carregar() {
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          if (!ignore) {
+            setItens(mockKanban);
+            setIsHydrated(true);
+          }
+          return;
+        }
+
+        const parsed = JSON.parse(raw) as KanbanItem[];
+        if (Array.isArray(parsed) && !ignore) {
+          setItens(parsed);
+        } else if (!ignore) {
+          setItens(mockKanban);
+        }
+      } catch {
+        if (!ignore) setItens(mockKanban);
+      } finally {
+        if (!ignore) setIsHydrated(true);
+      }
+    }
+
+    void carregar();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(itens)).catch(() => undefined);
+  }, [itens, isHydrated]);
 
   function adicionarItem(item: Omit<KanbanItem, 'id'>): string {
-    const id = `K${String(nextNum++).padStart(2, '0')}`;
+    const id = `K${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setItens((prev) => [{ id, ...item }, ...prev]);
     return id;
   }

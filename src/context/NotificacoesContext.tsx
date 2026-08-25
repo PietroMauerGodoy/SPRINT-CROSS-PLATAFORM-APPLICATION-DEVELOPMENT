@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 export type Notificacao = {
   id:       number;
@@ -18,6 +19,9 @@ type NotificacoesContextType = {
 };
 
 const NotificacoesContext = createContext<NotificacoesContextType | null>(null);
+
+const STORAGE_KEY = '@motiva:notificacoes';
+const NAO_LIDAS_KEY = '@motiva:notificacoes_nao_lidas';
 
 const INICIAIS: Notificacao[] = [
   {
@@ -56,11 +60,55 @@ export function tempoRelativo(data: Date): string {
 
 export function NotificacoesProvider({ children }: { children: ReactNode }) {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>(INICIAIS);
-  const [naoLidas, setNaoLidas]         = useState(0);
-  let nextId = notificacoes.length + 1;
+  const [naoLidas, setNaoLidas] = useState(INICIAIS.length);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function carregar() {
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Array<Omit<Notificacao, 'criadaEm'> & { criadaEm: string }>;
+          if (Array.isArray(parsed) && !ignore) {
+            setNotificacoes(parsed.map((item) => ({ ...item, criadaEm: new Date(item.criadaEm) })));
+          }
+        }
+
+        const rawNaoLidas = await AsyncStorage.getItem(NAO_LIDAS_KEY);
+        if (rawNaoLidas && !ignore) {
+          const parsedNaoLidas = Number(rawNaoLidas);
+          if (!Number.isNaN(parsedNaoLidas)) {
+            setNaoLidas(parsedNaoLidas);
+          }
+        }
+      } catch {
+        // ignora erro da leitura e mantém valores iniciais
+      } finally {
+        if (!ignore) setIsHydrated(true);
+      }
+    }
+
+    void carregar();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    const payload = notificacoes.map((item) => ({ ...item, criadaEm: item.criadaEm.toISOString() }));
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload)).catch(() => undefined);
+  }, [notificacoes, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(NAO_LIDAS_KEY, String(naoLidas)).catch(() => undefined);
+  }, [naoLidas, isHydrated]);
 
   function adicionarNotificacao(n: Omit<Notificacao, 'id' | 'criadaEm'>) {
-    const nova: Notificacao = { ...n, id: nextId++, criadaEm: new Date() };
+    const nova: Notificacao = { ...n, id: Date.now(), criadaEm: new Date() };
     setNotificacoes((prev) => [nova, ...prev]);
     setNaoLidas((prev) => prev + 1);
   }
