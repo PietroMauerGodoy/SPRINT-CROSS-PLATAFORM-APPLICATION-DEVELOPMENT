@@ -1,6 +1,7 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '../theme';
+import NotificacoesBell from './NotificacoesBell';
 
 const logoNegativo = require('../../assets/images/Motiva_Logo-Negativo.png');
 const perfilLogo = require('../../assets/images/perfil_logo.png');
@@ -15,6 +16,10 @@ type Props = {
   showBackButton?: boolean;
   showSettingsButton?: boolean;
   showLogoutButton?: boolean;
+  showThemeButton?: boolean;
+  isDarkMode?: boolean;
+  onToggleTheme?: () => void;
+  showNotificationsButton?: boolean;
 };
 
 export default function AppHeader({
@@ -27,45 +32,73 @@ export default function AppHeader({
   showBackButton = false,
   showSettingsButton = true,
   showLogoutButton = true,
+  showThemeButton = true,
+  isDarkMode = false,
+  onToggleTheme,
+  showNotificationsButton = true,
 }: Props) {
-  const actions = [];
-
-  if (showSettingsButton) {
-    actions.push(
-      <TouchableOpacity key="settings" style={styles.iconBtn} onPress={onSettingsPress} disabled={!onSettingsPress}>
-        <Ionicons name="settings-outline" size={18} color={colors.white} />
-      </TouchableOpacity>
-    );
-  }
-
-  if (showLogoutButton) {
-    actions.push(
-      <TouchableOpacity key="logout" style={styles.iconBtn} onPress={onLogoutPress} disabled={!onLogoutPress}>
-        <MaterialIcons name="logout" size={18} color={colors.white} />
-      </TouchableOpacity>
-    );
-  }
-
   return (
     <View style={styles.header}>
       <View style={styles.left}>
         {showBackButton ? (
-          <TouchableOpacity onPress={onBackPress} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={18} color={colors.white} />
+          <TouchableOpacity onPress={onBackPress} style={styles.plainIconBtn}>
+            <Ionicons name="arrow-back" size={20} color={colors.white} />
           </TouchableOpacity>
         ) : null}
 
         <Image source={logoNegativo} style={styles.logo} resizeMode="contain" />
 
         {showMenuButton ? (
-          <TouchableOpacity onPress={onMenuPress} style={styles.menuBtn}>
+          <TouchableOpacity onPress={onMenuPress} style={styles.plainIconBtn}>
             <Ionicons name="menu" size={24} color={colors.white} />
           </TouchableOpacity>
         ) : null}
       </View>
 
       <View style={styles.right}>
-        {actions.length > 0 ? <View style={styles.actionPill}>{actions}</View> : null}
+        <View style={styles.actionPill}>
+          {showThemeButton ? (
+            <>
+              <TouchableOpacity
+                style={styles.plainIconBtn}
+                onPress={onToggleTheme}
+                disabled={!onToggleTheme}
+              >
+                <Ionicons
+                  name={isDarkMode ? 'moon-outline' : 'sunny-outline'}
+                  size={20}
+                  color={colors.white}
+                />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+            </>
+          ) : null}
+
+          {showNotificationsButton ? (
+            <>
+              <View style={styles.notifSlot}>
+                <NotificacoesBell />
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
+
+          {showSettingsButton ? (
+            <>
+              <TouchableOpacity style={styles.plainIconBtn} onPress={onSettingsPress} disabled={!onSettingsPress}>
+                <Ionicons name="settings-outline" size={20} color={colors.white} />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+            </>
+          ) : null}
+
+          {showLogoutButton ? (
+            <TouchableOpacity style={styles.plainIconBtn} onPress={onLogoutPress} disabled={!onLogoutPress}>
+              <MaterialIcons name="logout" size={20} color={colors.white} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
         <TouchableOpacity style={styles.avatarBtn}>
           <Image source={perfilLogo} style={styles.avatar} resizeMode="cover" />
         </TouchableOpacity>
@@ -79,61 +112,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(59, 14, 104, 0.18)',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    zIndex: 100000,
+    elevation: 100,
   },
   left: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  backBtn: {
-    padding: spacing.xs,
-    marginRight: spacing.xs,
+    gap: 16,
   },
   logo: {
     width: 118,
     height: 30,
   },
-  menuBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   right: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    zIndex: 100000,
+    elevation: 100,
   },
   actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 18,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    zIndex: 100000,
+    elevation: 100,
   },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+  plainIconBtn: {
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  divider: {
+    width: 1,
+    height: 16,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  notifSlot: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100000,
+    elevation: 100,
   },
   avatarBtn: {
     width: 36,

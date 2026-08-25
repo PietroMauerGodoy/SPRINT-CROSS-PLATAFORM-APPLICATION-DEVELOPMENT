@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Motiva — Aplicativo de Gestão de Rodovias
+=======
+﻿# Motiva — Aplicativo de Gestão de Rodovias
+>>>>>>> agents/pasted-text-processing
 
 Aplicativo cross-platform desenvolvido com **Expo + React Native + TypeScript** para a gestão operacional de equipes e ocorrências em malhas rodoviárias federais e estaduais sob concessão.
 
@@ -322,4 +326,8 @@ Login
 | React Navigation  | 7.x    | Navegação entre telas (Stack)                |
 | React Context API | —      | Estado global (equipes, kanban, notificações)|
 | Expo Vector Icons | —      | Ícones (Ionicons, MaterialIcons)             |
+<<<<<<< HEAD
 | React Native Web  | —      | Suporte a navegador                          |
+=======
+| React Native Web  | —      | Suporte a navegador                          |
+>>>>>>> agents/pasted-text-processing
