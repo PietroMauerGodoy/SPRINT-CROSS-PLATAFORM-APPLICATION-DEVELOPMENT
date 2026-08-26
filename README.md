@@ -1,333 +1,152 @@
-<<<<<<< HEAD
-# Motiva — Aplicativo de Gestão de Rodovias
-=======
-﻿# Motiva — Aplicativo de Gestão de Rodovias
->>>>>>> agents/pasted-text-processing
+# Motiva — Sistema de Priorização de Manutenção de Vegetação Rodoviária
 
-Aplicativo cross-platform desenvolvido com **Expo + React Native + TypeScript** para a gestão operacional de equipes e ocorrências em malhas rodoviárias federais e estaduais sob concessão.
+Aplicativo cross-platform (**Expo + React Native + TypeScript**, base de código única para Web e Mobile via `react-native-web`) desenvolvido como parte do Challenge FIAP (2º ano — Ciência da Computação) em parceria com a **CCR Motiva**.
+
+---
+
+## Contexto de negócio
+
+Hoje a manutenção de vegetação nas margens de rodovias (roçada, poda, capina) segue um **cronograma fixo** (ex: a cada 30 dias), independente da real necessidade de intervenção em cada trecho. Isso gera dois problemas:
+
+- **Custo desnecessário** — equipes deslocadas para trechos sem necessidade real de corte.
+- **Risco operacional** — trechos que cresceram mais rápido que o previsto ficam sem manutenção até a próxima janela fixa, comprometendo visibilidade e segurança viária.
+
+A proposta do projeto é substituir esse cronograma fixo por um **score de criticidade por trecho**, calculado a partir de:
+
+- dados climáticos (chuva, temperatura) — afetam a taxa de crescimento da vegetação;
+- histórico de manutenção — tempo desde a última intervenção no trecho;
+- taxa de crescimento estimada por tipo de vegetação/trecho.
+
+O fluxo demonstrado pelo app é: **entrada de dados → processamento (cálculo de criticidade) → saída (priorização de equipes / Kanban)**.
+
+A lógica de severidade do Kanban é inspirada em parâmetros operacionais reais do setor:
+- **PER BR-381/MG/SP** (Programa de Exploração da Rodovia) — parâmetros de desempenho para conservação de faixa de domínio e vegetação.
+- **Anexo 06 — Lote Rota Sorocabana (ARTESP)** — padrões operacionais de conservação de vegetação (ex: poda ao atingir 30cm em geral / 10cm perto de instalações, prazos de resposta de 24h a 1 semana conforme criticidade, capina mínima de 4x/ano, aceiros 1x/ano).
+
+> Os parâmetros numéricos usados no app (faixas de altura, pesos) são valores de demonstração inspirados nesses documentos — não são os parâmetros contratuais exatos da concessão.
+
+---
+
+## Contexto acadêmico
+
+- **Instituição:** FIAP
+- **Metodologia:** Design Thinking, entregas por sprint (board no Miro + PDF espelhando o Miro)
+- **Sprint atual:** Sprint 2 — foco em MVP funcional
+- **Equipe:**
+  - Fernando Melo — RM 564297
+  - Patrick Mansour — RM 562970
+  - Pedro Henrique Ribeiro — RM 565090
+  - Pietro Mauer — RM 564345
+  - Ryan Santos — RM 565102
+  - Samir Assad — RM 561562
 
 ---
 
 ## Como rodar o projeto
 
 ### Pré-requisitos
-
 - Node.js 18+
 - Expo CLI (`npm install -g expo-cli`)
 - Expo Go instalado no celular **ou** navegador web
 
 ### Instalação
-
 ```bash
-# Clone o repositório
 git clone <url-do-repositorio>
-cd SPRINT02-CROSS-PLATAFORM-APPLICATION-DEVELOPMENT
-
-# Instale as dependências
+cd SPRINT-CROSS-PLATAFORM-APPLICATION-DEVELOPMENT
 npm install
 ```
 
 ### Executando
-
 ```bash
 # Web (recomendado para desenvolvimento)
 npx expo start --web
 
 # Dispositivo físico via Expo Go
 npx expo start
-# Escaneie o QR code com o Expo Go (Android) ou a câmera (iOS)
 ```
 
 ### Credenciais de acesso (dados mockados)
-
-| Usuário | Senha    | Cargo         |
-|---------|----------|---------------|
-| `admin` | `123456` | Administrador |
-
----
-
-## O que o app faz
-
-O **Motiva** é um sistema de controle operacional rodoviário. Nesta sprint as funcionalidades principais foram implementadas nas telas de **Equipes** e **Kanban**, com as demais telas (Ocorrências e Detalhe) estruturadas na navegação, mas ainda não desenvolvidas.
-
-### 1. Autenticação
-Tela de login com validação de credenciais contra dados mockados, toggle de visibilidade de senha e feedback de erro em tempo real.
-
-### 2. Gerenciamento de Equipes
-Tabela paginada (7 itens/página) com:
-- Busca por nome, responsável ou ID
-- Filtros por rodovia (BR-116, BR-381, SP-280) e status
-- CRUD completo: criar, editar, excluir equipes
-- Alternância de status **Ativo ↔ Inativo** (o status *Em Campo* é definido exclusivamente pelo Kanban)
-- Estado persistido via `EquipesContext` — dados não se perdem ao navegar entre telas
-- Toda ação (criar, editar, excluir, mudar status) gera uma notificação em tempo real
-
-### 3. Kanban de Vegetação
-Quadro Kanban com quatro colunas baseadas na severidade da vegetação medida em campo:
-
-| Coluna         | Faixa de altura |
-|----------------|-----------------|
-| Sem Ocorrência | 0 – 4 cm        |
-| Leve           | 5 – 14 cm       |
-| Grave          | 15 – 24 cm      |
-| Crítico        | ≥ 25 cm         |
-
-Funcionalidades:
-- Arrastar e soltar cards entre colunas; ao soltar, um modal pede a altura medida e valida a faixa da coluna de destino
-- A coluna de destino é determinada automaticamente pela altura informada
-- CRUD completo de registros de vegetação com modal de formulário
-- Observações e registro do último serviço por card
-- Estado persistido via `KanbanContext` — dados não se perdem ao navegar
-- Cada ação (criar, editar, mover, excluir) gera uma notificação em tempo real
-
-### 4. Sincronização Equipes ↔ Kanban
-
-As duas telas compartilham estado e se mantêm sincronizadas automaticamente:
-
-| Ação em Equipes                | Efeito no Kanban                          |
-|-------------------------------|-------------------------------------------|
-| Criar equipe (ativo)          | Card adicionado automaticamente na col. 1 |
-| Inativar equipe               | Card removido do Kanban                   |
-| Reativar equipe (inativo → ativo) | Card reinserido na col. 1             |
-| Excluir equipe                | Card removido do Kanban                   |
-
-| Ação no Kanban                      | Efeito em Equipes                      |
-|------------------------------------|----------------------------------------|
-| Mover card para col. 2, 3 ou 4     | Status da equipe → **Em Campo**        |
-| Mover card de volta para col. 1    | Status da equipe → **Ativo**           |
-
-### 5. Notificações Globais
-Sistema de notificações compartilhado entre todas as telas via `NotificacoesContext`:
-- Sino no header com badge vermelho mostrando o número de não lidas
-- Abrir o painel zera o contador automaticamente
-- Painel flutuante scrollável com as últimas notificações
-- Modal "Ver todas" com histórico completo e botão "Limpar tudo"
-- Notificações geradas automaticamente por todas as ações de CRUD nas duas telas
+| Usuário | Senha    | Cargo               |
+|---------|----------|---------------------|
+| `admin` | `123456` | Administrador       |
+| `joao`  | `123456` | Analista de Segurança |
 
 ---
 
-## Estrutura do projeto
+## Arquitetura técnica
 
+- **Stack:** TypeScript, Expo SDK 56, React Native 0.85, React Navigation 7 (native-stack), React Context API para estado global, Expo Vector Icons.
+- **Projeto unificado:** mesma base de código serve Web (`react-native-web`) e Mobile — não há dois projetos separados. Diferenças de plataforma são tratadas via `Platform.OS` pontualmente (ex: upload de avatar em `PerfilSection.tsx`).
+- **Dados 100% mockados** em `src/data/mockData.ts`, sem API externa. Estado persistido localmente via `@react-native-async-storage/async-storage` (funciona offline).
+
+### Estrutura de pastas
 ```
 src/
-├── screens/
-│   ├── LoginScreen.tsx          # Autenticação
-│   ├── EquipesScreen.tsx        # Gerenciamento de equipes (CRUD + sync Kanban)
-│   ├── KanbanScreen.tsx         # Kanban de vegetação (drag & drop + sync Equipes)
-│   ├── OcorrenciasScreen.tsx    # Lista de ocorrências (estrutura base)
-│   └── DetalheScreen.tsx        # Detalhe de ocorrência (estrutura base)
-│
-├── components/
-│   ├── NotificacoesBell.tsx     # Sino + badge + painel flutuante + modal
-│   ├── StatusBadge.tsx          # Badge de status reutilizável
-│   └── OcorrenciaCard.tsx       # Card reutilizável de ocorrência
-│
-├── context/
-│   ├── NotificacoesContext.tsx  # Estado global de notificações + contador não lidas
-│   ├── EquipesContext.tsx       # Estado global de equipes (persiste entre telas)
-│   └── KanbanContext.tsx        # Estado global do Kanban (persiste entre telas)
-│
-├── types/
-│   └── index.ts                 # Tipagem TypeScript centralizada
-│
-├── data/
-│   └── mockData.ts              # Dados mockados (sem API externa)
-│
-├── navigation/
-│   └── AppNavigator.tsx         # React Navigation (Stack)
-│
-└── theme/
-    └── index.ts                 # Cores e tokens de design
+├── screens/         # Login, Equipes, Kanban, Ocorrencias, Detalhe, Configuracoes
+├── components/      # AppHeader, NotificacoesBell, OcorrenciaCard, StatusBadge, configuracoes/*
+├── context/         # EquipesContext, KanbanContext, NotificacoesContext,
+│                    # ConfiguracoesContext, OcorrenciasContext
+├── services/        # ocorrenciasService.ts (persistência em AsyncStorage)
+├── types/           # Tipagem centralizada
+├── data/            # mockData.ts
+├── navigation/      # AppNavigator.tsx (Stack)
+└── theme/           # Cores e tokens de design
 ```
+
+### Gerenciamento de estado
+Seis providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `ConfiguracoesProvider`, `NotificacoesProvider`, `EquipesProvider`, `KanbanProvider`, `OcorrenciasProvider`. Todos com estado persistido em `AsyncStorage`.
 
 ---
 
-## Modelagem TypeScript
+## O que está pronto
 
-Os tipos principais estão em `src/types/index.ts`:
+| Área | Status |
+|---|---|
+| **Login** | Validação contra dados mockados |
+| **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban |
+| **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–4cm, Leve 5–14cm, Grave 15–24cm, Crítico ≥25cm), drag-and-drop (web/mouse), CRUD de itens, sincronizado com Equipes |
+| **Ocorrências** | Fluxo completo fechado: criar → salvar → listar → ver detalhe → avançar status (persistido via `OcorrenciasContext`) |
+| **Notificações** | Sino global, badge, painel, histórico, geradas por CRUD |
+| **Configurações** | Perfil, Preferências, Notificações, Usuários, Parâmetros do Sistema (pesos de criticidade), Integrações, Dados do Sistema — com persistência e toasts |
 
-```typescript
-export type StatusEquipe = 'ativo' | 'inativo' | 'em_campo';
+## O que está incompleto / é a próxima prioridade
 
-export type SeveridadeVegetacao = 'sem_ocorrencia' | 'leve' | 'grave' | 'critico';
-
-export type Equipe = {
-  id: string;
-  nome: string;
-  status: StatusEquipe;
-  rodovia: string;
-  km: string;
-  trechoRodovia: string;
-  responsavel: string;
-};
-
-export type KanbanItem = {
-  id: string;
-  equipeId: string;
-  nomeEquipe: string;
-  rodovia: string;
-  kmInicio: number;
-  kmFim: number;
-  tipoVegetacao: string;
-  alturaAtual: number;
-  severidade: SeveridadeVegetacao;
-  responsavel: string;
-  observacao: string;
-  ultimoServico: { data: string; responsavel: string } | null;
-};
-
-export type RiscoNivel = 'baixo' | 'medio' | 'alto';
-
-export type Ocorrencia = {
-  id: number;
-  titulo: string;
-  descricao: string;
-  local: string;
-  risco: RiscoNivel;
-  data: string;
-  categoria: string;
-  status: 'aberta' | 'em_andamento' | 'resolvida';
-  responsavel?: string;
-};
-```
-
-O tipo `Notificacao` é definido em `src/context/NotificacoesContext.tsx`:
-
-```typescript
-export type Notificacao = {
-  id: number;
-  cor: string;
-  icone: string;
-  titulo: string;
-  desc: string;
-  criadaEm: Date;
-};
-```
+- **Cálculo de score de criticidade:** os pesos (manutenção / clima / crescimento) já existem como sliders configuráveis em Configurações, mas **não há, ainda, um cálculo real** que os aplique a um trecho/equipe e produza uma priorização automática. Esta é a peça central da proposta de valor do projeto e ainda não existe no código.
+- **Drag-and-drop do Kanban** funciona apenas no navegador (usa APIs de mouse do DOM) — não funciona em dispositivo touch real via Expo Go.
+- **Dados mockados de Ocorrências** descrevem cenários de fábrica (vazamento de óleo, EPI, prensa hidráulica) em vez de cenários rodoviários/vegetação — desalinhados com o domínio do projeto.
 
 ---
 
-## Gerenciamento de estado
+## Bugs conhecidos
 
-O app usa **React Context** para todo o estado compartilhado entre telas. Três providers envolvem a aplicação em `App.tsx`:
-
-```typescript
-// App.tsx
-<NotificacoesProvider>
-  <EquipesProvider>
-    <KanbanProvider>
-      <AppNavigator />
-    </KanbanProvider>
-  </EquipesProvider>
-</NotificacoesProvider>
-```
-
-### EquipesContext
-
-```typescript
-type EquipesContextType = {
-  equipes:         Equipe[];
-  adicionarEquipe: (e: Omit<Equipe, 'id' | 'status'>) => string;
-  editarEquipe:    (id: string, dados: Omit<Equipe, 'id' | 'status'>) => void;
-  excluirEquipe:   (id: string) => void;
-  alternarStatus:  (id: string) => StatusEquipe; // só ativo ↔ inativo
-  setStatusEquipe: (id: string, status: StatusEquipe); // usado pelo Kanban
-};
-```
-
-### KanbanContext
-
-```typescript
-type KanbanContextType = {
-  itens:              KanbanItem[];
-  adicionarItem:      (item: Omit<KanbanItem, 'id'>) => string;
-  atualizarItem:      (id: string, updates: Partial<KanbanItem>) => void;
-  removerItem:        (id: string) => void;
-  removerPorEquipeId: (equipeId: string) => void;
-  limparColuna:       (sev: SeveridadeVegetacao) => void;
-  temEquipeNoKanban:  (equipeId: string) => boolean;
-};
-```
-
-### NotificacoesContext
-
-```typescript
-type NotificacoesContextType = {
-  notificacoes:        Notificacao[];
-  naoLidas:            number;
-  adicionarNotificacao:(n: Omit<Notificacao, 'id' | 'criadaEm'>) => void;
-  marcarTodasLidas:    () => void;  // chamado ao abrir o painel
-  limparTodas:         () => void;
-};
-```
-
-Exemplo de uso em qualquer tela:
-
-```typescript
-const { adicionarNotificacao } = useNotificacoes();
-
-adicionarNotificacao({
-  cor: '#10B981',
-  icone: 'people-outline',
-  titulo: 'Nova equipe criada',
-  desc: 'Equipe Alfa (#11) foi cadastrada em BR-116 e adicionada ao Kanban.',
-});
-```
-
----
-
-## Como os dados estão mockados
-
-Todos os dados ficam em `src/data/mockData.ts`. Não há chamadas a APIs externas — o app funciona 100% offline.
-
-### Usuários (`mockUsuarios`)
-1 usuário de teste com credenciais fixas para validação no login.
-
-### Equipes (`mockEquipes`)
-10 equipes distribuídas nas rodovias BR-116, BR-381 e SP-280 com responsáveis, trechos e status variados (ativo, inativo, em_campo).
-
-### Kanban (`mockKanban`)
-10 registros de vegetação com alturas entre 3 cm e 28 cm. A severidade é calculada automaticamente:
-
-```typescript
-function calcSeveridade(cm: number): SeveridadeVegetacao {
-  if (cm >= 25) return 'critico';
-  if (cm >= 15) return 'grave';
-  if (cm >= 5)  return 'leve';
-  return 'sem_ocorrencia';
-}
-```
-
-### Ocorrências (`mockOcorrencias`)
-5 ocorrências pré-cadastradas cobrindo cenários reais: vazamento de óleo, falta de EPI, iluminação deficiente, manutenção pendente e sinalização apagada.
+1. **Botão de configurações morto no Kanban** — `KanbanScreen.tsx` usa um header duplicado inline (em vez do componente `AppHeader`), e o ícone de engrenagem nesse header não tem nenhum `onPress`.
+2. **Drag-and-drop dependente de mouse** — usa `document.addEventListener('mousemove'/'mouseup')`, incompatível com touch em dispositivos móveis reais.
+3. **Dados mockados de Ocorrências fora do domínio** — cenários de fábrica em vez de rodovia/vegetação.
+4. *(A validar)* possível bug de validação assíncrona em `ParametrosSistemaSection.salvar()` e duplicação de wrapper no ícone de câmera de `PerfilSection` — reportados pela equipe, ainda não reproduzidos na leitura estática do código atual.
 
 ---
 
 ## Navegação
 
-Utiliza **React Navigation** (`@react-navigation/native-stack`) com rota inicial no Login:
-
 ```
 Login
-  └── Equipes
-        ├── Kanban
-        └── Ocorrencias
-              └── Detalhe
+  └── Equipes ──┬── Kanban
+                └── Ocorrencias ── Detalhe
+       (Equipes, Kanban e Ocorrencias também acessam Configuracoes)
 ```
 
 ---
 
-## Tecnologias utilizadas
+## Tecnologias
 
-| Tecnologia        | Versão | Uso                                          |
-|-------------------|--------|----------------------------------------------|
-| Expo SDK          | 56     | Plataforma base                              |
-| React Native      | 0.79   | Framework UI                                 |
-| TypeScript        | 5.x    | Tipagem estática                             |
-| React Navigation  | 7.x    | Navegação entre telas (Stack)                |
-| React Context API | —      | Estado global (equipes, kanban, notificações)|
-| Expo Vector Icons | —      | Ícones (Ionicons, MaterialIcons)             |
-<<<<<<< HEAD
-| React Native Web  | —      | Suporte a navegador                          |
-=======
-| React Native Web  | —      | Suporte a navegador                          |
->>>>>>> agents/pasted-text-processing
+| Tecnologia | Versão | Uso |
+|---|---|---|
+| Expo SDK | 56 | Plataforma base |
+| React Native | 0.85 | Framework UI |
+| React | 19.2 | Runtime |
+| TypeScript | 6.x | Tipagem estática |
+| React Navigation | 7.x | Navegação (Stack) |
+| React Context API | — | Estado global |
+| AsyncStorage | — | Persistência local |
+| Expo Vector Icons | — | Ícones (Ionicons, MaterialIcons) |
+| React Native Web | — | Suporte a navegador |
