@@ -12,6 +12,7 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -197,7 +198,7 @@ export default function LoginScreen({ navigation }: Props) {
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity activeOpacity={0.7}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => Linking.openURL('https://www.motiva.com.br')}>
                 <Text style={styles.forgotText}>
                   Esqueceu o login? Contate o suporte!
                 </Text>

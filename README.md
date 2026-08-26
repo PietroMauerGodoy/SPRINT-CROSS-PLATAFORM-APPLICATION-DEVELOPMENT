@@ -39,6 +39,7 @@ A lógica de severidade do Kanban é inspirada em parâmetros operacionais reais
   - Pietro Mauer — RM 564345
   - Ryan Santos — RM 565102
   - Samir Assad — RM 561562
+- **Repositório:** https://github.com/PietroMauerGodoy/SPRINT-CROSS-PLATAFORM-APPLICATION-DEVELOPMENT
 
 ---
 
@@ -114,6 +115,19 @@ Seis providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `Configurac
 - **Cálculo de score de criticidade:** os pesos (manutenção / clima / crescimento) já existem como sliders configuráveis em Configurações, mas **não há, ainda, um cálculo real** que os aplique a um trecho/equipe e produza uma priorização automática. Esta é a peça central da proposta de valor do projeto e ainda não existe no código.
 - **Drag-and-drop do Kanban** funciona apenas no navegador (usa APIs de mouse do DOM) — não funciona em dispositivo touch real via Expo Go.
 - **Dados mockados de Ocorrências** descrevem cenários de fábrica (vazamento de óleo, EPI, prensa hidráulica) em vez de cenários rodoviários/vegetação — desalinhados com o domínio do projeto.
+
+---
+
+## Fluxo de persistência (Ocorrências)
+
+A persistência de Ocorrências é ponta a ponta e sobrevive a fechar/reabrir o app:
+
+1. **Criar** — na tela Ocorrências, botão "Nova Ocorrência" abre um modal de cadastro. Ao salvar, `OcorrenciasScreen` chama `adicionarOcorrencia()` do `OcorrenciasContext`, que delega para `adicionarOcorrenciaService()` em `src/services/ocorrenciasService.ts`. O service gera o `id`, grava a lista inteira no `AsyncStorage` (chave `@motiva:ocorrencias`) e retorna o `id` novo.
+2. **Listar** — depois de salvar, o Context recarrega a lista com `listarOcorrencias()` (lida do `AsyncStorage`) e atualiza o estado (`useState<Ocorrencia[]>`) — a tela de lista re-renderiza automaticamente com o item novo, sem precisar reiniciar o app.
+3. **Ver detalhe** — ao tocar em um card, `OcorrenciasScreen` navega para `DetalheScreen` passando a ocorrência; a tela também busca a versão mais atual via `buscarPorId()` do Context, garantindo que o detalhe reflita qualquer atualização já persistida.
+4. **Reabrir o app** — no boot, `OcorrenciasProvider` roda `carregarOcorrencias()` em um `useEffect`, que lê do `AsyncStorage` e usa isso (não o mock) como fonte de dados sempre que já existir algo salvo. O mock (`mockOcorrencias`) só é usado como seed na primeira execução, quando ainda não há nada gravado.
+
+O mesmo padrão (Context + service/`AsyncStorage`, mock só como seed inicial) é usado também em `EquipesContext` e `KanbanContext`.
 
 ---
 
