@@ -5,6 +5,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { NotificacoesProvider } from './src/context/NotificacoesContext';
 import { EquipesProvider } from './src/context/EquipesContext';
 import { KanbanProvider } from './src/context/KanbanContext';
+import { HistoricoProvider } from './src/context/HistoricoContext';
 import { ConfiguracoesProvider } from './src/context/ConfiguracoesContext';
 import { OcorrenciasProvider } from './src/context/OcorrenciasContext';
 import { ToastProvider } from './src/components/toast/ToastContext';
@@ -17,9 +18,11 @@ export default function App() {
           <NotificacoesProvider>
             <EquipesProvider>
               <KanbanProvider>
-                <OcorrenciasProvider>
-                  <AppNavigator />
-                </OcorrenciasProvider>
+                <HistoricoProvider>
+                  <OcorrenciasProvider>
+                    <AppNavigator />
+                  </OcorrenciasProvider>
+                </HistoricoProvider>
               </KanbanProvider>
             </EquipesProvider>
           </NotificacoesProvider>

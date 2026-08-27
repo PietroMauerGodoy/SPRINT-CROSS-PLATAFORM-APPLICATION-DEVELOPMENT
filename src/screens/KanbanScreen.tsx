@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { colors } from '../theme';
 import { KanbanItem, RootStackParamList, SeveridadeVegetacao } from '../types';
 import { useNotificacoes } from '../context/NotificacoesContext';
@@ -182,9 +183,12 @@ function KanbanCard({ item, isDragging, onOpenDetail, onOpenMenu, onDragStart, o
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Kanban'> };
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Kanban'>;
+  route: RouteProp<RootStackParamList, 'Kanban'>;
+};
 
-export default function KanbanScreen({ navigation }: Props) {
+export default function KanbanScreen({ navigation, route }: Props) {
   const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparColunaCtx } = useKanban();
   const { setStatusEquipe } = useEquipes();
   const [rodoviaFiltro, setRodoviaFiltro] = useState('Todas');
@@ -353,6 +357,19 @@ export default function KanbanScreen({ navigation }: Props) {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
   function abrirDetalhe(item: KanbanItem) { setMenuCard(null); setCardDetalhe(item); setDetObs(item.observacao); }
+
+  // Abre o detalhe automaticamente ao chegar do Dashboard (ranking/recomendações)
+  // com um trecho específico já escolhido. Só dispara uma vez por navegação.
+  const abriuParamRef = useRef<string | null>(null);
+  useEffect(() => {
+    const alvo = route.params?.abrirDetalheId;
+    if (!alvo || abriuParamRef.current === alvo) return;
+    const item = itens.find((i) => i.id === alvo);
+    if (item) {
+      abriuParamRef.current = alvo;
+      abrirDetalhe(item);
+    }
+  }, [route.params?.abrirDetalheId, itens]);
   function salvarObs() {
     if (!cardDetalhe) return;
     atualizarItem(cardDetalhe.id, { observacao: detObs });
@@ -462,7 +479,7 @@ export default function KanbanScreen({ navigation }: Props) {
         {sidebarAberta && (
           <View style={s.sidebar}>
             {[
-              { icon: 'grid-outline',      label: 'Dashboard',    onPress: undefined,                                ativo: false },
+              { icon: 'grid-outline',      label: 'Dashboard',    onPress: () => navigation.navigate('Dashboard'),   ativo: false },
               { icon: 'people-outline',    label: 'Equipes',      onPress: () => navigation.navigate('Equipes'),     ativo: false },
               { icon: 'albums-outline',    label: 'Kanban',       onPress: undefined,                                ativo: true  },
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },

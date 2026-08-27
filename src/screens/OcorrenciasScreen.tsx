@@ -149,7 +149,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
         {sidebarAberta && (
           <View style={s.sidebar}>
             {[
-              { icon: 'grid-outline',      label: 'Dashboard',   ativo: false, onPress: undefined },
+              { icon: 'grid-outline',      label: 'Dashboard',   ativo: false, onPress: () => navigation.navigate('Dashboard') },
               { icon: 'people-outline',    label: 'Equipes',     ativo: false, onPress: () => navigation.navigate('Equipes') },
               { icon: 'albums-outline',    label: 'Kanban',      ativo: false, onPress: () => navigation.navigate('Kanban') },
               { icon: 'warning-outline',   label: 'Ocorrências', ativo: true,  onPress: undefined },

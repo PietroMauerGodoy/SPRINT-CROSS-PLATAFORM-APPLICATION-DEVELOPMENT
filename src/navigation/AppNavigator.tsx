@@ -2,6 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import LoginScreen from '../screens/LoginScreen';
+import DashboardScreen from '../screens/DashboardScreen';
 import EquipesScreen from '../screens/EquipesScreen';
 import OcorrenciasScreen from '../screens/OcorrenciasScreen';
 import DetalheScreen from '../screens/DetalheScreen';
@@ -18,6 +19,7 @@ export default function AppNavigator() {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login"       component={LoginScreen}       />
+        <Stack.Screen name="Dashboard"   component={DashboardScreen}   />
         <Stack.Screen name="Equipes"     component={EquipesScreen}     />
         <Stack.Screen name="Kanban"      component={KanbanScreen}      />
 <Stack.Screen name="Ocorrencias" component={OcorrenciasScreen} />

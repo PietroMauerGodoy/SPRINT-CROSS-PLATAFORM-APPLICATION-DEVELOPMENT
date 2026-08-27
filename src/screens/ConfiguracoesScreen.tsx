@@ -53,7 +53,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
         {sidebarAberta && (
           <View style={s.sidebar}>
             {[
-              { icon: 'grid-outline',      label: 'Dashboard',    onPress: undefined,                           ativo: false },
+              { icon: 'grid-outline',      label: 'Dashboard',    onPress: () => navigation.navigate('Dashboard'), ativo: false },
               { icon: 'people-outline',    label: 'Equipes',      onPress: () => navigation.navigate('Equipes'), ativo: false },
               { icon: 'albums-outline',    label: 'Kanban',       onPress: () => navigation.navigate('Kanban'),  ativo: false },
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },

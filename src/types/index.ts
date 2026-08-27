@@ -50,11 +50,17 @@ export type KanbanItem = {
   ultimoServico: { data: string; responsavel: string } | null;
 };
 
+export type SeveridadeSnapshot = {
+  data: string; // 'YYYY-MM-DD'
+  contagens: Record<SeveridadeVegetacao, number>;
+};
+
 export type RootStackParamList = {
   Login: undefined;
+  Dashboard: undefined;
   Ocorrencias: undefined;
   Equipes: undefined;
-  Kanban: undefined;
+  Kanban: { abrirDetalheId?: string } | undefined;
   Configuracoes: undefined;
   Cadastro: undefined;
   Detalhe: { ocorrencia: Ocorrencia };
