@@ -105,7 +105,7 @@ Seis providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `Configurac
 |---|---|
 | **Login** | Validação contra dados mockados |
 | **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban |
-| **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–4cm, Leve 5–14cm, Grave 15–24cm, Crítico ≥25cm), drag-and-drop (web/mouse), CRUD de itens, sincronizado com Equipes |
+| **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm — faixas calibradas para que "Crítico" comece no limite geral de poda do Anexo 06/ARTESP), drag-and-drop (mouse e toque, via `PanResponder`), CRUD de itens, sincronizado com Equipes |
 | **Ocorrências** | Fluxo completo fechado: criar → salvar → listar → ver detalhe → avançar status (persistido via `OcorrenciasContext`) |
 | **Notificações** | Sino global, badge, painel, histórico, geradas por CRUD |
 | **Configurações** | Perfil, Preferências, Notificações, Usuários, Parâmetros do Sistema (pesos de criticidade), Integrações, Dados do Sistema — com persistência e toasts |
@@ -113,7 +113,7 @@ Seis providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `Configurac
 ## O que está incompleto / é a próxima prioridade
 
 - **Cálculo de score de criticidade:** os pesos (manutenção / clima / crescimento) já existem como sliders configuráveis em Configurações, mas **não há, ainda, um cálculo real** que os aplique a um trecho/equipe e produza uma priorização automática. Esta é a peça central da proposta de valor do projeto e ainda não existe no código.
-- **Drag-and-drop do Kanban** funciona apenas no navegador (usa APIs de mouse do DOM) — não funciona em dispositivo touch real via Expo Go.
+- **Drag-and-drop do Kanban em touch:** já foi reescrito para usar `PanResponder` (compatível com mouse e toque) em vez das APIs de mouse do DOM — pendente apenas de confirmação de teste manual em dispositivo real via Expo Go.
 - **Dados mockados de Ocorrências** descrevem cenários de fábrica (vazamento de óleo, EPI, prensa hidráulica) em vez de cenários rodoviários/vegetação — desalinhados com o domínio do projeto.
 
 ---
@@ -133,10 +133,9 @@ O mesmo padrão (Context + service/`AsyncStorage`, mock só como seed inicial) �
 
 ## Bugs conhecidos
 
-1. **Botão de configurações morto no Kanban** — `KanbanScreen.tsx` usa um header duplicado inline (em vez do componente `AppHeader`), e o ícone de engrenagem nesse header não tem nenhum `onPress`.
-2. **Drag-and-drop dependente de mouse** — usa `document.addEventListener('mousemove'/'mouseup')`, incompatível com touch em dispositivos móveis reais.
-3. **Dados mockados de Ocorrências fora do domínio** — cenários de fábrica em vez de rodovia/vegetação.
-4. *(A validar)* possível bug de validação assíncrona em `ParametrosSistemaSection.salvar()` e duplicação de wrapper no ícone de câmera de `PerfilSection` — reportados pela equipe, ainda não reproduzidos na leitura estática do código atual.
+1. ~~Botão de configurações morto no Kanban~~ — **corrigido.** `KanbanScreen.tsx` agora usa o mesmo `AppHeader` das outras telas, com a engrenagem navegando para Configurações.
+2. **Dados mockados de Ocorrências fora do domínio** — cenários de fábrica em vez de rodovia/vegetação.
+3. *(A validar)* possível bug de validação assíncrona em `ParametrosSistemaSection.salvar()` e duplicação de wrapper no ícone de câmera de `PerfilSection` — reportados pela equipe, ainda não reproduzidos na leitura estática do código atual.
 
 ---
 

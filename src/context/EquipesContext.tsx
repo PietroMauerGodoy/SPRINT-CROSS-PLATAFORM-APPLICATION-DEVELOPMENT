@@ -59,7 +59,14 @@ export function EquipesProvider({ children }: { children: ReactNode }) {
   }, [equipes, isHydrated]);
 
   function adicionarEquipe(dados: Omit<Equipe, 'id' | 'status'>): string {
-    const id = `#${Date.now().toString()}-${Math.random().toString(36).slice(2, 6)}`;
+    // Só considera IDs no formato exato "#NN" — ignora IDs antigos/corrompidos
+    // (ex: "#1787867689912-8bzw") para não inflar o próximo número gerado.
+    const numeros = equipes
+      .map((e) => e.id.match(/^#(\d+)$/))
+      .filter((m): m is RegExpMatchArray => m !== null)
+      .map((m) => parseInt(m[1], 10));
+    const proximoNum = (numeros.length > 0 ? Math.max(...numeros) : 0) + 1;
+    const id = `#${String(proximoNum).padStart(2, '0')}`;
     setEquipes((prev) => [{ id, status: 'ativo', ...dados }, ...prev]);
     return id;
   }

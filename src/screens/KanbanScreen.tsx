@@ -11,6 +11,8 @@ import {
   Modal,
   Alert,
   ImageBackground,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,11 +21,9 @@ import { KanbanItem, RootStackParamList, SeveridadeVegetacao } from '../types';
 import { useNotificacoes } from '../context/NotificacoesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
-import NotificacoesBell from '../components/NotificacoesBell';
+import AppHeader from '../components/AppHeader';
 
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
-import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
-import perfilLogo from '../../assets/images/perfil_logo.png';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -31,9 +31,9 @@ const COLUNAS: {
   id: string; label: string; cor: string; severidade: SeveridadeVegetacao | null;
 }[] = [
   { id: 'todos',   label: 'Todos os KMs',        cor: '#7C3AED', severidade: null      },
-  { id: 'leve',    label: 'Leve — 5 a 15cm',     cor: '#16A34A', severidade: 'leve'    },
-  { id: 'grave',   label: 'Grave — 15 a 25cm',   cor: '#D97706', severidade: 'grave'   },
-  { id: 'critico', label: 'Crítico — 25 a 30cm', cor: '#DC2626', severidade: 'critico' },
+  { id: 'leve',    label: 'Leve — 10 a 19cm',    cor: '#16A34A', severidade: 'leve'    },
+  { id: 'grave',   label: 'Grave — 20 a 29cm',   cor: '#D97706', severidade: 'grave'   },
+  { id: 'critico', label: 'Crítico — ≥ 30cm',    cor: '#DC2626', severidade: 'critico' },
 ];
 
 const VEGETACAO_OPTS = [
@@ -59,10 +59,12 @@ const VEG_COR: Record<string, string> = {
   'Mata Ciliar Densa':         '#EF4444',
 };
 
+// Faixas alinhadas ao Anexo 06/ARTESP: poda obrigatória a partir de 30cm (regra geral).
+// 0–29cm dividido em 3 faixas iguais (10cm cada) para dar visibilidade de progressão.
 function calcSeveridade(cm: number): SeveridadeVegetacao {
-  if (cm >= 25) return 'critico';
-  if (cm >= 15) return 'grave';
-  if (cm >= 5)  return 'leve';
+  if (cm >= 30) return 'critico';
+  if (cm >= 20) return 'grave';
+  if (cm >= 10) return 'leve';
   return 'sem_ocorrencia';
 }
 function sevCor(sev: SeveridadeVegetacao): string {
@@ -90,6 +92,94 @@ function getIA(item: KanbanItem): { texto: string; cor: string } {
   return { texto: 'Condição normal', cor: '#16A34A' };
 }
 
+type Rect = { left: number; top: number; right: number; bottom: number };
+
+// ─── Card do Kanban (mouse + touch) ────────────────────────────────────────
+// PanResponder funciona tanto com mouse (web) quanto com toque (Android/iOS),
+// ao contrário da implementação anterior baseada em document.addEventListener.
+type KanbanCardProps = {
+  item: KanbanItem;
+  isDragging: boolean;
+  onOpenDetail: (item: KanbanItem) => void;
+  onOpenMenu: (item: KanbanItem, pos: { x: number; y: number }) => void;
+  onDragStart: (item: KanbanItem, pageX: number, pageY: number) => void;
+  onDragMove: (pageX: number, pageY: number) => void;
+  onDragEnd: (item: KanbanItem, pageX: number, pageY: number) => void;
+};
+
+function KanbanCard({ item, isDragging, onOpenDetail, onOpenMenu, onDragStart, onDragMove, onDragEnd }: KanbanCardProps) {
+  const sc     = sevCor(item.severidade);
+  const sb     = sevBg(item.severidade);
+  const vegCor = VEG_COR[item.tipoVegetacao] ?? '#94A3B8';
+  const rodCor = RODOVIA_COR[item.rodovia] ?? '#6366F1';
+
+  const menuBtnRef = useRef<any>(null);
+  const itemRef     = useRef(item);
+  itemRef.current    = item;
+
+  // Criado uma única vez: por isso lê sempre o item mais recente via itemRef.
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => false,
+      // Só assume o gesto como "arrastar" quando o movimento é predominantemente
+      // horizontal — assim um scroll vertical dentro da coluna continua funcionando.
+      onMoveShouldSetPanResponderCapture: (_evt, g) =>
+        Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderGrant: (evt) => onDragStart(itemRef.current, evt.nativeEvent.pageX, evt.nativeEvent.pageY),
+      onPanResponderMove:  (evt) => onDragMove(evt.nativeEvent.pageX, evt.nativeEvent.pageY),
+      onPanResponderRelease: (evt) => onDragEnd(itemRef.current, evt.nativeEvent.pageX, evt.nativeEvent.pageY),
+      onPanResponderTerminate: (evt) => onDragEnd(itemRef.current, evt.nativeEvent.pageX, evt.nativeEvent.pageY),
+      onPanResponderTerminationRequest: () => false,
+    }),
+  ).current;
+
+  function abrirMenu() {
+    const node = menuBtnRef.current;
+    if (node?.measureInWindow) {
+      node.measureInWindow((x: number, y: number, width: number, height: number) => {
+        onOpenMenu(item, { x: x + width - 158, y: y + height + 6 });
+      });
+    }
+  }
+
+  return (
+    <View style={[s.card, isDragging && s.cardDragging]} {...panResponder.panHandlers}>
+      <Pressable onPress={() => onOpenDetail(item)}>
+        {/* Color label strips (Trello-style) */}
+        <View style={s.cardLabels}>
+          <View style={[s.labelStrip, { backgroundColor: sc }]} />
+          <View style={[s.labelStrip, { backgroundColor: rodCor }]} />
+          <View style={[s.labelStrip, { backgroundColor: vegCor }]} />
+        </View>
+
+        <View style={s.cardBody}>
+          <View style={s.cardTopRow}>
+            <Text style={s.cardNome} numberOfLines={2}>{item.nomeEquipe}</Text>
+            <TouchableOpacity ref={menuBtnRef} style={s.cardMenuBtn} onPress={abrirMenu}>
+              <Ionicons name="ellipsis-horizontal" size={14} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={s.cardKm}>{item.rodovia}  ·  KM {item.kmInicio}.0 → {item.kmFim}.0</Text>
+          <Text style={s.cardVeg} numberOfLines={1}>{item.tipoVegetacao}</Text>
+
+          {/* Footer */}
+          <View style={s.cardFooter}>
+            <View style={[s.cardSevPill, { backgroundColor: sb }]}>
+              <View style={[s.cardSevDot, { backgroundColor: sc }]} />
+              <Text style={[s.cardSevTxt, { color: sc }]}>{sevLabel(item.severidade)}</Text>
+            </View>
+            <View style={s.cardAlt}>
+              <Ionicons name="leaf-outline" size={11} color="#94A3B8" />
+              <Text style={s.cardAltTxt}>{item.alturaAtual} cm</Text>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Kanban'> };
@@ -107,7 +197,7 @@ export default function KanbanScreen({ navigation }: Props) {
   const [menuCard, setMenuCard]           = useState<string | null>(null);
   const [menuCardPos, setMenuCardPos]     = useState<{ x: number; y: number } | null>(null);
   const [menuCol, setMenuCol]             = useState<string | null>(null);
-  const [draggingId, setDraggingId]       = useState<string | null>(null);
+  const [draggingItem, setDraggingItem]   = useState<KanbanItem | null>(null);
   const [dragOverCol, setDragOverCol]     = useState<string | null>(null);
 
   const [cardDetalhe, setCardDetalhe]     = useState<KanbanItem | null>(null);
@@ -120,9 +210,9 @@ export default function KanbanScreen({ navigation }: Props) {
   const [modalAltura, setModalAltura]         = useState<{ item: KanbanItem; targetSev: SeveridadeVegetacao } | null>(null);
   const [novaAltura, setNovaAltura]           = useState('');
   const [alturaErro, setAlturaErro]           = useState<string | null>(null);
-  const wasDragging                           = useRef(false);
-  const ghostRef                              = useRef<any>(null);
   const colRefs                               = useRef<Record<string, any>>({});
+  const colRectsCache                         = useRef<{ col: typeof COLUNAS[0]; rect: Rect | null }[]>([]);
+  const pan                                   = useRef(new Animated.ValueXY()).current;
   const { adicionarNotificacao }              = useNotificacoes();
 
   // quick-add state per column
@@ -167,120 +257,68 @@ export default function KanbanScreen({ navigation }: Props) {
     input.click();
   }
 
-  // ── Drag & Drop ──────────────────────────────────────────────────────────
-  // Threshold: move < 6px = click, move ≥ 6px = arrasta card
-  function handleCardPointerDown(e: any, item: KanbanItem) {
-    if (e.button !== 0) return;
-    e.stopPropagation();
+  // ── Drag & Drop (mouse + touch, via PanResponder) ────────────────────────
+  const GHOST_W = 264;
+  const GHOST_H = 60;
 
-    const startX = e.clientX;
-    const startY = e.clientY;
-    let dragActive = false;
-    let rafId: number | null = null;
-
-    // Coleta rects dos refs React (confiável em RN Web)
-    const cols = COLUNAS.map((col) => {
-      const node = colRefs.current[col.id];
-      const rect: DOMRect | null = node?.getBoundingClientRect?.() ?? null;
-      return { col, rect };
-    });
-
-    function getColRects() {
-      return COLUNAS.map((col) => {
-        const node = colRefs.current[col.id];
-        const rect: DOMRect | null = node?.getBoundingClientRect?.() ?? null;
-        return { col, rect };
-      });
-    }
-
-    function hitCol(x: number, y: number, rects = cols) {
-      return rects.find(({ rect }) =>
-        rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
-      ) ?? null;
-    }
-
-    function createGhost() {
-      const sc = sevCor(item.severidade);
-      const g = (document as any).createElement('div');
-      g.innerHTML = `
-        <div style="font-size:13px;font-weight:700;color:#1E293B;margin-bottom:3px">${item.nomeEquipe}</div>
-        <div style="font-size:11px;color:#64748B">${item.rodovia} · KM ${item.kmInicio}.0 → ${item.kmFim}.0</div>
-        <div style="font-size:10px;color:#94A3B8;margin-top:2px">${item.tipoVegetacao}</div>
-      `;
-      g.style.cssText = [
-        'position:fixed', 'top:0', 'left:0', 'width:264px',
-        `transform:translate(${startX - 132}px,${startY - 44}px) rotate(2deg) scale(1.04)`,
-        'background:#fff', 'border-radius:10px', 'padding:12px 14px 10px',
-        `border-top:4px solid ${sc}`,
-        'box-shadow:0 20px 56px rgba(0,0,0,0.28)',
-        'pointer-events:none', 'z-index:99999', 'opacity:0.95',
-        'font-family:system-ui,sans-serif',
-        'will-change:transform', 'transition:none',
-      ].join(';');
-      (document as any).body.appendChild(g);
-      ghostRef.current = g;
-    }
-
-    function onMouseMove(me: MouseEvent) {
-      const dx = me.clientX - startX;
-      const dy = me.clientY - startY;
-
-      if (!dragActive && Math.sqrt(dx * dx + dy * dy) > 6) {
-        dragActive = true;
-        wasDragging.current = true;
-        createGhost();
-        setDraggingId(item.id);
+  function measureCol(node: any): Promise<Rect | null> {
+    return new Promise((resolve) => {
+      if (!node) { resolve(null); return; }
+      if (typeof node.getBoundingClientRect === 'function') {
+        const r = node.getBoundingClientRect();
+        resolve({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+        return;
       }
-
-      if (dragActive && ghostRef.current) {
-        if (rafId !== null) cancelAnimationFrame(rafId);
-        const cx = me.clientX;
-        const cy = me.clientY;
-        rafId = requestAnimationFrame(() => {
-          if (ghostRef.current) {
-            ghostRef.current.style.transform =
-              `translate(${cx - 132}px,${cy - 44}px) rotate(2deg) scale(1.04)`;
-          }
-          setDragOverCol(hitCol(cx, cy)?.col.id ?? null);
+      if (typeof node.measureInWindow === 'function') {
+        node.measureInWindow((x: number, y: number, width: number, height: number) => {
+          resolve({ left: x, top: y, right: x + width, bottom: y + height });
         });
+        return;
       }
+      resolve(null);
+    });
+  }
+
+  async function measureAllCols() {
+    colRectsCache.current = await Promise.all(
+      COLUNAS.map(async (col) => ({ col, rect: await measureCol(colRefs.current[col.id]) })),
+    );
+  }
+
+  function hitCol(x: number, y: number) {
+    return colRectsCache.current.find(({ rect }) =>
+      rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+    ) ?? null;
+  }
+
+  function handleDragStart(item: KanbanItem, pageX: number, pageY: number) {
+    setDraggingItem(item);
+    pan.setValue({ x: pageX - GHOST_W / 2, y: pageY - GHOST_H / 2 });
+    void measureAllCols();
+  }
+
+  function handleDragMove(pageX: number, pageY: number) {
+    pan.setValue({ x: pageX - GHOST_W / 2, y: pageY - GHOST_H / 2 });
+    setDragOverCol(hitCol(pageX, pageY)?.col.id ?? null);
+  }
+
+  function handleDragEnd(item: KanbanItem, pageX: number, pageY: number) {
+    const over = hitCol(pageX, pageY);
+    setDraggingItem(null);
+    setDragOverCol(null);
+    if (over) {
+      const targetSev: SeveridadeVegetacao = over.col.severidade ?? 'sem_ocorrencia';
+      setNovaAltura(String(item.alturaAtual));
+      setModalAltura({ item, targetSev });
     }
-
-    function onMouseUp(ue: MouseEvent) {
-      (document as any).removeEventListener('mousemove', onMouseMove);
-      (document as any).removeEventListener('mouseup', onMouseUp);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-
-      if (dragActive) {
-        if (ghostRef.current) {
-          (document as any).body.removeChild(ghostRef.current);
-          ghostRef.current = null;
-        }
-        const over = hitCol(ue.clientX, ue.clientY, getColRects());
-        if (over) {
-          const targetSev: SeveridadeVegetacao = over.col.severidade ?? 'sem_ocorrencia';
-          setNovaAltura(String(item.alturaAtual));
-          setModalAltura({ item, targetSev });
-        }
-        setDraggingId(null);
-        setDragOverCol(null);
-        setTimeout(() => { wasDragging.current = false; }, 80);
-      } else {
-        setMenuCard(null);
-        abrirDetalhe(item);
-      }
-    }
-
-    (document as any).addEventListener('mousemove', onMouseMove);
-    (document as any).addEventListener('mouseup', onMouseUp);
   }
 
   // ── Confirmação de altura ao arrastar ─────────────────────────────────────
   const FAIXA_RANGES: Record<SeveridadeVegetacao, { min: number; max: number; label: string }> = {
-    sem_ocorrencia: { min: 0,  max: 4,   label: '0 – 4 cm'  },
-    leve:           { min: 5,  max: 14,  label: '5 – 14 cm' },
-    grave:          { min: 15, max: 24,  label: '15 – 24 cm'},
-    critico:        { min: 25, max: 999, label: '≥ 25 cm'   },
+    sem_ocorrencia: { min: 0,  max: 9,   label: '0 – 9 cm'   },
+    leve:           { min: 10, max: 19,  label: '10 – 19 cm' },
+    grave:          { min: 20, max: 29,  label: '20 – 29 cm' },
+    critico:        { min: 30, max: 999, label: '≥ 30 cm'    },
   };
 
   function confirmarNovaAltura() {
@@ -410,36 +448,12 @@ export default function KanbanScreen({ navigation }: Props) {
       <ImageBackground source={bgRoxo} style={StyleSheet.absoluteFill} resizeMode="cover" imageStyle={s.bgFill} />
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <View style={s.header}>
-        <View style={s.hLeft}>
-          <Image source={logoNeg} style={s.hLogo} resizeMode="contain" />
-          <TouchableOpacity onPress={() => setSidebarAberta((v) => !v)}>
-            <Ionicons name="menu" size={22} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
-        </View>
-        <View style={s.hRight}>
-          <View style={s.hIconPill}>
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="sunny-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <View style={s.hPillBtn}>
-              <NotificacoesBell panelTop={54} panelRight={72} />
-            </View>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn}>
-              <Ionicons name="settings-outline" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <View style={s.hPillDivider} />
-            <TouchableOpacity style={s.hPillBtn} onPress={() => setShowLogout(true)}>
-              <MaterialIcons name="logout" size={17} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={s.hAvatar}>
-            <Image source={perfilLogo} style={s.hAvatarImg} resizeMode="cover" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader
+        title="Kanban"
+        onMenuPress={() => setSidebarAberta((v) => !v)}
+        onSettingsPress={() => navigation.navigate('Configuracoes')}
+        onLogoutPress={() => setShowLogout(true)}
+      />
 
       {/* ── BODY ───────────────────────────────────────────────────────────── */}
       <View style={s.body}>
@@ -514,7 +528,7 @@ export default function KanbanScreen({ navigation }: Props) {
             style={s.boardScroll} contentContainerStyle={s.boardContent}>
             {COLUNAS.map((col) => {
               const cards      = colItens(col);
-              const isDragOver = dragOverCol === col.id && draggingId !== null;
+              const isDragOver = dragOverCol === col.id && draggingItem !== null;
               const isMenuCol  = menuCol === col.id;
               return (
                 <View
@@ -564,68 +578,18 @@ export default function KanbanScreen({ navigation }: Props) {
                       </View>
                     )}
 
-                    {cards.map((item) => {
-                      const sc   = sevCor(item.severidade);
-                      const sb   = sevBg(item.severidade);
-                      const isDragging = draggingId === item.id;
-                      const vegCor = VEG_COR[item.tipoVegetacao] ?? '#94A3B8';
-                      const rodCor = RODOVIA_COR[item.rodovia] ?? '#6366F1';
-
-                      return (
-                        <View
-                          key={item.id}
-                          style={[s.card, isDragging && s.cardDragging]}
-                          {...({
-                            onMouseDown: (e: any) => handleCardPointerDown(e, item),
-                            style: [s.card, isDragging && s.cardDragging, { cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }],
-                          } as any)}
-                        >
-                          {/* Color label strips (Trello-style) */}
-                          <View style={s.cardLabels}>
-                            <View style={[s.labelStrip, { backgroundColor: sc }]} />
-                            <View style={[s.labelStrip, { backgroundColor: rodCor }]} />
-                            <View style={[s.labelStrip, { backgroundColor: vegCor }]} />
-                          </View>
-
-                          {/* Card body — View (sem TouchableOpacity) para não bloquear o drag */}
-                          <View style={s.cardBody}>
-                            <View style={s.cardTopRow}>
-                              <Text style={s.cardNome} numberOfLines={2}>{item.nomeEquipe}</Text>
-                              <TouchableOpacity
-                                style={s.cardMenuBtn}
-                                {...({
-                                  onMouseDown: (e: any) => e.stopPropagation(),
-                                  onClick: (e: any) => {
-                                    e.stopPropagation();
-                                    if (menuCard === item.id) { setMenuCard(null); setMenuCardPos(null); return; }
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setMenuCard(item.id);
-                                    setMenuCardPos({ x: rect.right - 158, y: rect.bottom + 6 });
-                                  },
-                                } as any)}
-                              >
-                                <Ionicons name="ellipsis-horizontal" size={14} color="#94A3B8" />
-                              </TouchableOpacity>
-                            </View>
-
-                            <Text style={s.cardKm}>{item.rodovia}  ·  KM {item.kmInicio}.0 → {item.kmFim}.0</Text>
-                            <Text style={s.cardVeg} numberOfLines={1}>{item.tipoVegetacao}</Text>
-
-                            {/* Footer */}
-                            <View style={s.cardFooter}>
-                              <View style={[s.cardSevPill, { backgroundColor: sb }]}>
-                                <View style={[s.cardSevDot, { backgroundColor: sc }]} />
-                                <Text style={[s.cardSevTxt, { color: sc }]}>{sevLabel(item.severidade)}</Text>
-                              </View>
-                              <View style={s.cardAlt}>
-                                <Ionicons name="leaf-outline" size={11} color="#94A3B8" />
-                                <Text style={s.cardAltTxt}>{item.alturaAtual} cm</Text>
-                              </View>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
+                    {cards.map((item) => (
+                      <KanbanCard
+                        key={item.id}
+                        item={item}
+                        isDragging={draggingItem?.id === item.id}
+                        onOpenDetail={abrirDetalhe}
+                        onOpenMenu={(it, pos) => { setMenuCard(it.id); setMenuCardPos(pos); }}
+                        onDragStart={handleDragStart}
+                        onDragMove={handleDragMove}
+                        onDragEnd={handleDragEnd}
+                      />
+                    ))}
                   </ScrollView>
 
                   {/* Quick add */}
@@ -662,6 +626,19 @@ export default function KanbanScreen({ navigation }: Props) {
           </ScrollView>
         </View>
       </View>
+
+      {/* ── GHOST DE ARRASTE (segue o dedo/mouse; funciona em mouse e touch) ─── */}
+      {draggingItem && (
+        <Animated.View
+          pointerEvents="none"
+          style={[s.dragGhost, { transform: [...pan.getTranslateTransform(), { rotate: '2deg' }, { scale: 1.04 }] }]}
+        >
+          <View style={[s.dragGhostBar, { backgroundColor: sevCor(draggingItem.severidade) }]} />
+          <Text style={s.dragGhostNome} numberOfLines={1}>{draggingItem.nomeEquipe}</Text>
+          <Text style={s.dragGhostKm}>{draggingItem.rodovia} · KM {draggingItem.kmInicio}.0 → {draggingItem.kmFim}.0</Text>
+          <Text style={s.dragGhostVeg} numberOfLines={1}>{draggingItem.tipoVegetacao}</Text>
+        </Animated.View>
+      )}
 
       {/* ── MENU FLUTUANTE DO CARD (fora do ScrollView, position fixed) ──────── */}
       {menuCard !== null && menuCardPos !== null && (() => {
@@ -741,7 +718,7 @@ export default function KanbanScreen({ navigation }: Props) {
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
                   <View style={s.detHeader}>
                     <View style={[s.detIdChip, { backgroundColor: sb }]}>
-                      <Text style={[s.detId, { color: sc }]}>{cardDetalhe.id}</Text>
+                      <Text style={[s.detId, { color: sc }]}>{cardDetalhe.equipeId || cardDetalhe.id}</Text>
                     </View>
                     <TouchableOpacity onPress={() => setCardDetalhe(null)}>
                       <Ionicons name="close" size={20} color="#94A3B8" />
@@ -865,7 +842,7 @@ export default function KanbanScreen({ navigation }: Props) {
           <View style={s.modalCard}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
               <View style={s.modalHead}>
-                <Text style={s.modalTitulo}>{itemEditando ? `Editar ${itemEditando.id}` : 'Nova Ocorrência'}</Text>
+                <Text style={s.modalTitulo}>{itemEditando ? `Editar ${itemEditando.equipeId || itemEditando.id}` : 'Nova Ocorrência'}</Text>
                 <TouchableOpacity onPress={() => setModalCriar(false)}>
                   <Ionicons name="close" size={22} color={colors.secondary} />
                 </TouchableOpacity>
@@ -1002,7 +979,7 @@ export default function KanbanScreen({ navigation }: Props) {
             <Text style={s.smallTitulo}>Excluir ocorrência</Text>
             <Text style={s.smallDesc}>
               Tem certeza que deseja excluir{' '}
-              <Text style={{ fontWeight: '700' }}>{confirmarExcluir?.id}</Text>?{'\n'}
+              <Text style={{ fontWeight: '700' }}>{confirmarExcluir?.equipeId || confirmarExcluir?.id}</Text>?{'\n'}
               Esta ação não pode ser desfeita.
             </Text>
             <View style={s.smallBtns}>
@@ -1026,16 +1003,6 @@ const s = StyleSheet.create({
   root:   { flex: 1, backgroundColor: '#3B0FA6' },
   bgFill: { width: '100%', height: '100%' },
 
-  // Header
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'transparent', paddingHorizontal: 22, paddingVertical: 10, zIndex: 10 },
-  hLeft:        { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  hLogo:        { width: 130, height: 36 },
-  hRight:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  hIconPill:    { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  hPillBtn:     { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  hPillDivider: { width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.15)' },
-  hAvatar:      { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: colors.primary },
-  hAvatarImg:   { width: '100%', height: '100%' },
   notifDot:     { position: 'absolute', top: -2, right: -2, width: 7, height: 7, borderRadius: 4, backgroundColor: '#EF4444', borderWidth: 1, borderColor: '#fff' },
 
   // Body
@@ -1138,6 +1105,19 @@ const s = StyleSheet.create({
   cardSevTxt:   { fontSize: 10, fontWeight: '700' },
   cardAlt:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardAltTxt:   { fontSize: 10, color: '#94A3B8', fontWeight: '600' },
+
+  // Ghost de arraste (mouse + touch)
+  dragGhost: {
+    position: 'absolute', left: 0, top: 0, width: 264, overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 10,
+    paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.28, shadowRadius: 56,
+    elevation: 24, zIndex: 9999,
+  },
+  dragGhostBar:  { position: 'absolute', top: 0, left: 0, right: 0, height: 4 },
+  dragGhostNome: { fontSize: 13, fontWeight: '700', color: '#1E293B', marginBottom: 3 },
+  dragGhostKm:   { fontSize: 11, color: '#64748B' },
+  dragGhostVeg:  { fontSize: 10, color: '#94A3B8', marginTop: 2 },
 
   // Quick-add at bottom of column
   quickAdd:       { padding: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
