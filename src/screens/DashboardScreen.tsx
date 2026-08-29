@@ -12,6 +12,7 @@ import { RootStackParamList } from '../types';
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics';
 import { useHistorico } from '../context/HistoricoContext';
 import { useAuth } from '../context/AuthContext';
+import { podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
 
 import bgRoxo from '../../assets/images/backgroundroxo.png';
 
@@ -27,15 +28,16 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 };
 
-// Placeholder — KPIs, gráficos, ranking e recomendações entram nas próximas etapas.
 export default function DashboardScreen({ navigation }: Props) {
-  const { logout } = useAuth();
+  const { usuario, logout } = useAuth();
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [showLogout, setShowLogout] = useState(false);
 
   // Filtros de rodovia/período chegam na Etapa 9 — por ora, valores fixos.
   const { snapshots } = useHistorico();
-  const metrics = useDashboardMetrics({ rodovia: 'Todas', periodoDias: 30, snapshots });
+  const metrics = useDashboardMetrics({ usuario, rodovia: 'Todas', periodoDias: 30, snapshots });
+  const ehOperadorCampo = usuario?.papel === 'operador_campo';
+  const mostrarOperacional = usuario ? podeVerItemMenuOperacional(usuario) : false;
 
   return (
     <View style={s.root}>
@@ -60,7 +62,7 @@ export default function DashboardScreen({ navigation }: Props) {
               { icon: 'calendar-outline',  label: 'Planejamento', ativo: false, onPress: undefined },
               { icon: 'bar-chart-outline', label: 'Relatórios',   ativo: false, onPress: undefined },
               { icon: 'settings-outline',  label: 'Config.',      ativo: false, onPress: () => navigation.navigate('Configuracoes') },
-            ].map((item) => (
+            ].filter((item) => mostrarOperacional || !ITENS_MENU_SEM_TELA.includes(item.label)).map((item) => (
               <TouchableOpacity
                 key={item.label}
                 style={[s.sideItem, item.ativo && s.sideItemAtivo]}
@@ -84,7 +86,11 @@ export default function DashboardScreen({ navigation }: Props) {
             <View style={s.titleRow}>
               <View>
                 <Text style={s.titulo}>Dashboard Operacional</Text>
-                <Text style={s.subtitulo}>Onde agir agora, e por quê</Text>
+                <Text style={s.subtitulo}>
+                  {ehOperadorCampo
+                    ? `Visão reduzida — dados da sua equipe${usuario?.equipeId ? ` (${usuario.equipeId})` : ''}`
+                    : 'Onde agir agora, e por quê'}
+                </Text>
               </View>
             </View>
 
@@ -122,10 +128,12 @@ export default function DashboardScreen({ navigation }: Props) {
               />
             </View>
 
-            <View style={s.sectionCard}>
-              <Text style={s.sectionTitulo}>Tendência — trechos grave + crítico (últimos 30 dias)</Text>
-              <CriticidadeTrendChart pontos={metrics.tendencia} />
-            </View>
+            {metrics.temHistoricoConfiavel && (
+              <View style={s.sectionCard}>
+                <Text style={s.sectionTitulo}>Tendência — trechos grave + crítico (últimos 30 dias)</Text>
+                <CriticidadeTrendChart pontos={metrics.tendencia} />
+              </View>
+            )}
 
             <View style={s.sectionCard}>
               <Text style={s.sectionTitulo}>Distribuição atual por severidade</Text>

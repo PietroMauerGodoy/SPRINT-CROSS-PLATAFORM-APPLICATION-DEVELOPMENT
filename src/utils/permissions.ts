@@ -71,16 +71,27 @@ export function podeAcessarParametrosSistema(usuario: Usuario): boolean {
   return usuario.papel === 'admin';
 }
 
-/** Só Admin gerencia contas de usuário e papéis. */
+/**
+ * Admin e Gestor gerenciam contas de usuário e papéis — em especial, atribuir/
+ * trocar a equipe de um Operador de Campo é uma decisão operacional do dia a
+ * dia, não estrutural do sistema, então cabe também ao Gestor (não só Admin).
+ */
 export function podeGerenciarUsuarios(usuario: Usuario): boolean {
-  return usuario.papel === 'admin';
+  return temAcessoTotal(usuario);
 }
 
 /**
- * Itens de sidebar sem tela real por trás hoje (Trechos, Planejamento,
- * Relatórios) — controla só a VISIBILIDADE do item de menu, não o acesso a
- * um recurso, já que não existe recurso implementado.
+ * Itens de sidebar sem tela real por trás hoje (Planejamento, Relatórios) —
+ * controla só a VISIBILIDADE do item de menu, não o acesso a um recurso, já
+ * que não existe recurso implementado. "Trechos" fica visível pra todo mundo
+ * (mesmo sem tela própria ainda) porque o dado de trecho já existe e já é
+ * visível/filtrado por papel dentro do Kanban.
  */
 export function podeVerItemMenuOperacional(usuario: Usuario): boolean {
   return temAcessoTotal(usuario);
 }
+
+/** Labels de sidebar sem tela real hoje — usado junto com podeVerItemMenuOperacional()
+ *  pra filtrar a lista de itens de menu nas telas (Equipes/Kanban/Ocorrências/
+ *  Configurações/Dashboard todas compartilham a mesma sidebar). */
+export const ITENS_MENU_SEM_TELA = ['Planejamento', 'Relatórios'];

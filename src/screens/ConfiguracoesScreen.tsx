@@ -16,7 +16,7 @@ import { colors } from '../theme';
 import { RootStackParamList } from '../types';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../context/AuthContext';
-import { podeAcessarParametrosSistema, podeGerenciarUsuarios } from '../utils/permissions';
+import { podeAcessarParametrosSistema, podeGerenciarUsuarios, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
 
 import PerfilSection from '../components/configuracoes/PerfilSection';
 import PreferenciasSection from '../components/configuracoes/PreferenciasSection';
@@ -36,6 +36,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
   const { usuario, logout } = useAuth();
   const podeVerUsuarios   = usuario ? podeGerenciarUsuarios(usuario) : false;
   const podeVerParametros = usuario ? podeAcessarParametrosSistema(usuario) : false;
+  const mostrarOperacional = usuario ? podeVerItemMenuOperacional(usuario) : false;
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [hoverSide, setHoverSide]         = useState<string | null>(null);
   const [showLogout, setShowLogout]       = useState(false);
@@ -66,7 +67,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                           ativo: false },
               { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                           ativo: false },
               { icon: 'settings-outline',  label: 'Config.',      onPress: undefined,                           ativo: true  },
-            ].map((item) => (
+            ].filter((item) => mostrarOperacional || !ITENS_MENU_SEM_TELA.includes(item.label)).map((item) => (
               <Pressable
                 key={item.label}
                 style={[s.sideItem, item.ativo && s.sideItemAtivo, hoverSide === item.label && !item.ativo && s.sideItemHover]}

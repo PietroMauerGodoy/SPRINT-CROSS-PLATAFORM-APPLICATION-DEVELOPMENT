@@ -4,7 +4,8 @@
 import { useMemo } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
-import { SeveridadeSnapshot } from '../types';
+import { SeveridadeSnapshot, Usuario } from '../types';
+import { getKanbanItemsVisiveis, getEquipesVisiveis, podeVerDashboardCompleto } from '../utils/permissions';
 import {
   contarTrechosCriticos,
   contarEquipesEmCampo,
@@ -26,6 +27,8 @@ export type RodoviaFiltro = 'Todas' | 'BR-116' | 'BR-381' | 'SP-280';
 export type PeriodoFiltroDias = 7 | 30 | 90;
 
 type UseDashboardMetricsParams = {
+  /** null durante a hidratação do AuthContext — o hook devolve métricas vazias nesse caso. */
+  usuario: Usuario | null;
   rodovia: RodoviaFiltro;
   periodoDias: PeriodoFiltroDias;
   /** Histórico de contagens diárias, usado no gráfico de tendência (fonte definida na Etapa 6). */
@@ -47,9 +50,14 @@ export type DashboardMetrics = {
   tendencia: PontoTendencia[];
   /** Variação de trechos críticos vs. `periodoDias` atrás; null sem histórico suficiente. */
   deltaTrechosCriticos: number | null;
+  /** false para Operador de Campo — o histórico (snapshots) é agregado de toda a malha,
+   *  não por equipe, então tendência/delta não podem ser calculados de forma confiável
+   *  no escopo reduzido. A tela deve esconder essas seções quando isto for false. */
+  temHistoricoConfiavel: boolean;
 };
 
 export function useDashboardMetrics({
+  usuario,
   rodovia,
   periodoDias,
   snapshots = [],
@@ -59,9 +67,30 @@ export function useDashboardMetrics({
   const { equipes } = useEquipes();
 
   return useMemo(() => {
-    const itensFiltrados = filtrarPorRodovia(itens, rodovia);
-    const equipesFiltradas = filtrarPorRodovia(equipes, rodovia);
+    if (!usuario) {
+      return {
+        trechosCriticos: 0,
+        equipesEmCampo: 0,
+        totalEquipesAtivas: 0,
+        percentualSLA: null,
+        tempoMedioResposta: null,
+        distribuicao: distribuicaoPorSeveridade([]),
+        ranking: [],
+        recomendacoes: [],
+        tendencia: [],
+        deltaTrechosCriticos: null,
+        temHistoricoConfiavel: false,
+      };
+    }
+
+    // Primeiro escopo por papel (RLS-ready) — Operador de Campo só enxerga a
+    // própria equipe/trechos daqui em diante; depois disso, o filtro de rodovia.
+    const itensDoUsuario = getKanbanItemsVisiveis(usuario, itens);
+    const equipesDoUsuario = getEquipesVisiveis(usuario, equipes);
+    const itensFiltrados = filtrarPorRodovia(itensDoUsuario, rodovia);
+    const equipesFiltradas = filtrarPorRodovia(equipesDoUsuario, rodovia);
     const { emCampo, totalAtivas } = contarEquipesEmCampo(equipesFiltradas);
+    const temHistoricoConfiavel = podeVerDashboardCompleto(usuario);
 
     return {
       trechosCriticos: contarTrechosCriticos(itensFiltrados),
@@ -72,8 +101,9 @@ export function useDashboardMetrics({
       distribuicao: distribuicaoPorSeveridade(itensFiltrados),
       ranking: rankearTrechos(itensFiltrados),
       recomendacoes: gerarRecomendacoes(itensFiltrados, limiteRecomendacoes),
-      tendencia: serieTendenciaGraveCritico(snapshots, periodoDias),
-      deltaTrechosCriticos: deltaTrechosCriticos(snapshots, periodoDias),
+      tendencia: temHistoricoConfiavel ? serieTendenciaGraveCritico(snapshots, periodoDias) : [],
+      deltaTrechosCriticos: temHistoricoConfiavel ? deltaTrechosCriticos(snapshots, periodoDias) : null,
+      temHistoricoConfiavel,
     };
-  }, [itens, equipes, rodovia, periodoDias, snapshots, limiteRecomendacoes]);
+  }, [usuario, itens, equipes, rodovia, periodoDias, snapshots, limiteRecomendacoes]);
 }

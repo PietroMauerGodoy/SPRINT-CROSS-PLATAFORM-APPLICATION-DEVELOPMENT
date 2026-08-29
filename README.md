@@ -69,12 +69,12 @@ npx expo start
 ### Credenciais de acesso (dados mockados)
 | Login | Senha | Nome | Papel | Escopo de acesso |
 |---|---|---|---|---|
-| `admin` | `123456` | Admin Motiva | Admin | Acesso total ao app, mais as duas seções restritas de Configurações: **Parâmetros do Sistema** (pesos de criticidade/SLA) e **Gestão de Usuários** |
-| `joao` | `123456` | João Silva | Gestor | Acesso operacional completo — todas as equipes, todos os trechos do Kanban, todas as Ocorrências, Dashboard completo. Sem acesso a Parâmetros do Sistema/Gestão de Usuários |
+| `admin` | `123456` | Admin Motiva | Admin | Acesso total ao app, incluindo **Parâmetros do Sistema** e **Gestão de Usuários** |
+| `joao` | `123456` | João Silva | Gestor | Acesso operacional completo — todas as equipes, todos os trechos do Kanban, todas as Ocorrências, Dashboard completo, **Gestão de Usuários** (pode atribuir/trocar a equipe de um Operador de Campo). Sem acesso a Parâmetros do Sistema (só Admin) |
 | `maria` | `123456` | Maria Santos | Operador de Campo | Só enxerga a **Equipe Alfa** (`#01`) e os trechos do Kanban vinculados a ela (`equipeId: '#01'`) |
 | `carlos` | `123456` | Carlos Oliveira | Operador de Campo | Só enxerga a **Equipe Beta** (`#02`) e os trechos do Kanban vinculados a ela (`equipeId: '#02'`) |
 
-Contas ficam definidas em `src/data/mockData.ts` (`mockUsuarios`) e podem ser criadas/editadas de verdade em **Configurações → Gestão de Usuários** (seção só visível para o papel Admin) — o que for cadastrado ali passa a valer como login imediatamente, porque a tela opera sobre o `UsuariosContext` real (não é mock decorativo).
+Contas ficam definidas em `src/data/mockData.ts` (`mockUsuarios`) e podem ser criadas/editadas de verdade em **Configurações → Gestão de Usuários** (seção visível para Admin e Gestor) — o que for cadastrado ali passa a valer como login imediatamente, porque a tela opera sobre o `UsuariosContext` real (não é mock decorativo).
 
 > Se você alterar `mockUsuarios` no código e um login antigo continuar "colado", é porque já existe uma lista salva em `AsyncStorage` no seu navegador/dispositivo (a mesma lógica de seed usada em `EquipesContext`/`KanbanContext`: só usa o mock se não houver nada salvo ainda). As chaves de armazenamento (`@motiva:usuarios:v2`, `@motiva:usuarioLogado:v2`) já foram versionadas uma vez por esse motivo — se voltar a acontecer, suba a versão da chave de novo em `UsuariosContext.tsx`/`AuthContext.tsx`.
 
@@ -111,17 +111,26 @@ Nove providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `UsuariosPr
 
 O app tem 3 papéis de usuário, cada um com um escopo de dados diferente:
 
-| Papel | Pode ver | Pode gerenciar |
-|---|---|---|
-| **Admin** | Tudo | Tudo + Parâmetros do Sistema + Gestão de Usuários |
-| **Gestor** | Tudo | Equipes, Kanban, Ocorrências (sem Parâmetros/Usuários) |
-| **Operador de Campo** | Só a própria equipe e os trechos dela (via `equipeId`) | Só edição/registro de serviço nos trechos da própria equipe |
+| Recurso | Admin | Gestor | Operador de Campo |
+|---|---|---|---|
+| Equipes — visualizar | Todas | Todas | Só a própria (`equipeId`) |
+| Equipes — criar/editar/excluir | Sim | Sim | Não |
+| Kanban — visualizar | Todos os trechos | Todos os trechos | Só trechos da própria equipe |
+| Kanban — mover card / registrar serviço | Qualquer trecho | Qualquer trecho | Só trechos da própria equipe |
+| Kanban — criar/excluir item | Sim | Sim | Não |
+| Ocorrências — visualizar | Todas | Todas | Todas (sem filtro por equipe ainda — ver limitações) |
+| Ocorrências — criar | Sim | Sim | Não |
+| Dashboard | Completo (todas as equipes/trechos + tendência histórica) | Completo | Reduzido — só dados da própria equipe; sem gráfico de tendência (histórico é agregado da malha toda, não por equipe) |
+| Config → Parâmetros do Sistema | Sim | Não | Não |
+| Config → Gestão de Usuários | Sim | Sim (pode atribuir/trocar a equipe de um Operador de Campo) | Não |
+| Sidebar — Trechos | Visível (sem tela própria ainda) | Visível | Visível |
+| Sidebar — Planejamento / Relatórios | Visível (sem tela própria ainda) | Visível | Oculto |
 
-A autorização é centralizada em `src/utils/permissions.ts` — funções puras (`getEquipesVisiveis`, `getKanbanItemsVisiveis`, `podeGerenciarEquipes`, `podeAcessarParametrosSistema`, etc.) que recebem o `Usuario` logado e devolvem o que ele pode ver/fazer. **Nenhuma tela decide isso sozinha com `if (papel === ...)` espalhado no JSX** — a tela só renderiza o que a função de permissão já filtrou.
+A autorização é centralizada em `src/utils/permissions.ts` — funções puras (`getEquipesVisiveis`, `getKanbanItemsVisiveis`, `podeGerenciarEquipes`, `podeAcessarParametrosSistema`, `podeGerenciarUsuarios`, `podeVerDashboardCompleto`, etc.) que recebem o `Usuario` logado e devolvem o que ele pode ver/fazer. **Nenhuma tela decide isso sozinha com `if (papel === ...)` espalhado no JSX** — a tela só renderiza o que a função de permissão já filtrou.
 
-Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados hoje (é Context API + AsyncStorage), mas cada função em `permissions.ts` foi pensada para virar uma política de RLS real no Postgres/Supabase na Fase 2, sem redesenhar a lógica de autorização — só trocar "onde" ela roda. A documentação de como cada regra se traduziria em SQL/RLS (`docs/rls-supabase.md`) ainda está pendente.
+Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados hoje (é Context API + AsyncStorage), mas cada função em `permissions.ts` foi pensada para virar uma política de RLS real no Postgres/Supabase na Fase 2, sem redesenhar a lógica de autorização — só trocar "onde" ela roda. Ver [`docs/rls-supabase.md`](docs/rls-supabase.md) para o SQL comentado de cada regra (referência, não executável ainda).
 
-**Status da integração por tela:** `Equipes` e `Kanban` já filtram dados e escondem ações conforme o papel. Dashboard reduzido para Operador de Campo, e o gating de Parâmetros do Sistema/Gestão de Usuários (só Admin), estão em implementação.
+**Limitação conhecida:** Ocorrências não têm vínculo com equipe/trecho no modelo de dados hoje (só `local: string` livre), então não são filtradas por papel — todo mundo com acesso à tela vê todas.
 
 ---
 
@@ -130,7 +139,7 @@ Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados 
 | Área | Status |
 |---|---|
 | **Login** | Validação contra `UsuariosContext` (real, com CRUD — não mais um array estático) |
-| **Controle de acesso (RBAC)** | 3 papéis (Admin/Gestor/Operador de Campo); Equipes e Kanban já filtram dados e ações por papel; demais telas em implementação |
+| **Controle de acesso (RBAC)** | 3 papéis (Admin/Gestor/Operador de Campo); Equipes, Kanban, Dashboard, Ocorrências, Configurações e a sidebar das 5 telas filtram dados/ações/menu por papel; documentação de RLS futura em [`docs/rls-supabase.md`](docs/rls-supabase.md) |
 | **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban, visível conforme papel |
 | **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm — faixas calibradas para que "Crítico" comece no limite geral de poda do Anexo 06/ARTESP), drag-and-drop (mouse e toque, via `PanResponder`), CRUD de itens, sincronizado com Equipes, visível conforme papel |
 | **Ocorrências** | Fluxo completo fechado: criar → salvar → listar → ver detalhe → avançar status (persistido via `OcorrenciasContext`) |
@@ -140,7 +149,6 @@ Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados 
 
 ## O que está incompleto / é a próxima prioridade
 
-- **RBAC nas telas restantes:** Dashboard ainda não tem a versão reduzida para Operador de Campo; "Parâmetros do Sistema" e "Gestão de Usuários" ainda não estão restritas só a Admin; criação de Ocorrência ainda não está restrita a Admin/Gestor; itens de sidebar sem tela real (Trechos, Planejamento, Relatórios) ainda não são escondidos por papel.
 - **"Tempo médio de resposta" (KPI do Dashboard):** sempre mostra "—" hoje — o cálculo exige saber quando um trecho *entrou* na severidade atual, e o modelo de dados só guarda snapshots diários agregados, não um log de transição por trecho. Documentado em `utils/dashboardMetrics.ts`.
 - **Drag-and-drop do Kanban em touch:** já foi reescrito para usar `PanResponder` (compatível com mouse e toque) em vez das APIs de mouse do DOM — pendente apenas de confirmação de teste manual em dispositivo real via Expo Go.
 - **Dados mockados de Ocorrências** descrevem cenários de fábrica (vazamento de óleo, EPI, prensa hidráulica) em vez de cenários rodoviários/vegetação — desalinhados com o domínio do projeto.

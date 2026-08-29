@@ -22,7 +22,7 @@ import { useNotificacoes } from '../context/NotificacoesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import { useAuth } from '../context/AuthContext';
 import { useOcorrencias } from '../context/OcorrenciasContext';
-import { podeCriarOcorrencia } from '../utils/permissions';
+import { podeCriarOcorrencia, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
 
 import bgRoxo    from '../../assets/images/backgroundroxo.png';
 
@@ -48,6 +48,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
   const { adicionarNotificacao } = useNotificacoes();
   const { usuario, logout } = useAuth();
   const podeCriar = usuario ? podeCriarOcorrencia(usuario) : false;
+  const mostrarOperacional = usuario ? podeVerItemMenuOperacional(usuario) : false;
   const { notifPrefs } = useConfiguracoes();
   const { ocorrencias, adicionarOcorrencia } = useOcorrencias();
   const [busca, setBusca]             = useState('');
@@ -161,7 +162,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
               { icon: 'calendar-outline',  label: 'Planejamento',ativo: false, onPress: undefined },
 { icon: 'bar-chart-outline', label: 'Relatórios',  ativo: false, onPress: undefined },
               { icon: 'settings-outline',  label: 'Config.',     ativo: false, onPress: () => navigation.navigate('Configuracoes') },
-            ].map((item) => (
+            ].filter((item) => mostrarOperacional || !ITENS_MENU_SEM_TELA.includes(item.label)).map((item) => (
               <TouchableOpacity
                 key={item.label}
                 style={[s.sideItem, item.ativo && s.sideItemAtivo]}

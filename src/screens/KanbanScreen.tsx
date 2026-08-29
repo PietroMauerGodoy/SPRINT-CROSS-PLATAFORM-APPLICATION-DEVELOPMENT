@@ -23,7 +23,7 @@ import { useNotificacoes } from '../context/NotificacoesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
 import { useAuth } from '../context/AuthContext';
-import { getKanbanItemsVisiveis, podeCriarOuExcluirKanbanItem } from '../utils/permissions';
+import { getKanbanItemsVisiveis, podeCriarOuExcluirKanbanItem, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
 import AppHeader from '../components/AppHeader';
 
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
@@ -196,6 +196,7 @@ export default function KanbanScreen({ navigation, route }: Props) {
   const { usuario, logout } = useAuth();
   const itensVisiveis = usuario ? getKanbanItemsVisiveis(usuario, itens) : itens;
   const podeCriarExcluir = usuario ? podeCriarOuExcluirKanbanItem(usuario) : false;
+  const mostrarOperacional = usuario ? podeVerItemMenuOperacional(usuario) : false;
   const [rodoviaFiltro, setRodoviaFiltro] = useState('Todas');
   const [dropRodovia, setDropRodovia] = useState(false);
 
@@ -493,8 +494,8 @@ export default function KanbanScreen({ navigation, route }: Props) {
               { icon: 'map-outline',       label: 'Trechos',      onPress: undefined,                                ativo: false },
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                                ativo: false },
               { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
-              { icon: 'settings-outline',  label: 'Config.',      onPress: undefined,                                ativo: false },
-            ].map((item) => {
+              { icon: 'settings-outline',  label: 'Config.',      onPress: () => navigation.navigate('Configuracoes'), ativo: false },
+            ].filter((item) => mostrarOperacional || !ITENS_MENU_SEM_TELA.includes(item.label)).map((item) => {
               const hov = hoverSide === item.label && !item.ativo;
               return (
                 <Pressable key={item.label}

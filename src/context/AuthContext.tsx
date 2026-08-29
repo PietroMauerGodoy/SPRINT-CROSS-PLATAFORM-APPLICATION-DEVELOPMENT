@@ -11,6 +11,8 @@ type AuthContextType = {
   isHydrated: boolean;
   login: (usuario: string, senha: string) => boolean;
   logout: () => void;
+  /** Atualiza o usuário da sessão atual (ex: depois de editar o próprio perfil em Configurações). */
+  atualizarUsuarioLogado: (dados: Partial<Usuario>) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -64,8 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null);
   }
 
+  function atualizarUsuarioLogado(dados: Partial<Usuario>) {
+    setUsuario((prev) => (prev ? { ...prev, ...dados } : prev));
+  }
+
   return (
-    <AuthContext.Provider value={{ usuario, isHydrated, login, logout }}>
+    <AuthContext.Provider value={{ usuario, isHydrated, login, logout, atualizarUsuarioLogado }}>
       {children}
     </AuthContext.Provider>
   );

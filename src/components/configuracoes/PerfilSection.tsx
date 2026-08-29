@@ -3,6 +3,8 @@ import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Modal, Plat
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
 import { useConfiguracoes } from '../../context/ConfiguracoesContext';
+import { useAuth } from '../../context/AuthContext';
+import { useUsuarios } from '../../context/UsuariosContext';
 import { useToast } from '../toast/ToastContext';
 import SectionCard from './SectionCard';
 
@@ -11,17 +13,15 @@ const perfilLogo = require('../../../assets/images/perfil_logo.png');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function PerfilSection() {
-  const {
-    nomePerfil, setNomePerfil,
-    emailPerfil, setEmailPerfil,
-    avatarPerfil, setAvatarPerfil,
-    registrarAtividade,
-  } = useConfiguracoes();
+  const { avatarPerfil, setAvatarPerfil, registrarAtividade } = useConfiguracoes();
+  const { usuario, atualizarUsuarioLogado } = useAuth();
+  const { editarUsuario } = useUsuarios();
   const { showToast } = useToast();
 
-  // Rascunhos locais para os campos (commit só ao salvar)
-  const [nome, setNome] = useState(nomePerfil);
-  const [email, setEmail] = useState(emailPerfil);
+  // Rascunhos locais para os campos (commit só ao salvar) — inicializados com
+  // o usuário REAL logado, não um valor fixo desconectado.
+  const [nome, setNome] = useState(usuario?.nome ?? '');
+  const [email, setEmail] = useState(usuario?.email ?? '');
   const [erroNome, setErroNome] = useState<string | null>(null);
   const [erroEmail, setErroEmail] = useState<string | null>(null);
 
@@ -49,13 +49,18 @@ export default function PerfilSection() {
   }
 
   function salvar() {
+    if (!usuario) return;
     const eNome = validarNome(nome);
     const eEmail = validarEmail(email);
     setErroNome(eNome);
     setErroEmail(eEmail);
     if (eNome || eEmail) return;
-    setNomePerfil(nome.trim());
-    setEmailPerfil(email.trim());
+
+    const dados = { ...usuario, nome: nome.trim(), email: email.trim() };
+    const { id, ...resto } = dados;
+    const ok = editarUsuario(usuario.id, resto);
+    if (!ok) { setErroEmail('Não foi possível salvar — tente novamente.'); return; }
+    atualizarUsuarioLogado({ nome: nome.trim(), email: email.trim() });
     registrarAtividade('Atualizou os dados do perfil (nome/e-mail)');
     showToast('Perfil salvo com sucesso!');
   }
@@ -82,11 +87,17 @@ export default function PerfilSection() {
   }
 
   function confirmarSenhaAlterada() {
+    if (!usuario) return;
     let ok = true;
     if (senhaAtual.trim() === '') { setErroSenhaAtual('Informe a senha atual.'); ok = false; }
+    else if (senhaAtual !== usuario.senha) { setErroSenhaAtual('Senha atual incorreta.'); ok = false; }
     if (novaSenha.length < 6) { setErroNovaSenha('A nova senha deve ter no mínimo 6 caracteres.'); ok = false; }
     if (novaSenha !== confirmarSenha) { setErroConfirmar('A confirmação não confere com a nova senha.'); ok = false; }
     if (!ok) return;
+
+    const { id, ...resto } = usuario;
+    editarUsuario(usuario.id, { ...resto, senha: novaSenha });
+    atualizarUsuarioLogado({ senha: novaSenha });
     setModalSenha(false);
     registrarAtividade('Alterou a senha da conta');
     showToast('Senha alterada com sucesso!');

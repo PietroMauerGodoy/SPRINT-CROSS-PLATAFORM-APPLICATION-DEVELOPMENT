@@ -25,7 +25,7 @@ import { useEquipes } from '../context/EquipesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import { useAuth } from '../context/AuthContext';
-import { getEquipesVisiveis, podeGerenciarEquipes } from '../utils/permissions';
+import { getEquipesVisiveis, podeGerenciarEquipes, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
 import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
 import perfilLogo from '../../assets/images/perfil_logo.png';
@@ -52,6 +52,7 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
   const { usuario, logout } = useAuth();
   const equipesVisiveis = usuario ? getEquipesVisiveis(usuario, equipes) : equipes;
   const podeGerenciar = usuario ? podeGerenciarEquipes(usuario) : false;
+  const mostrarOperacional = usuario ? podeVerItemMenuOperacional(usuario) : false;
   const [busca, setBusca]                  = useState('');
   const [rodoviaFiltro, setRodoviaFiltro]  = useState('Todas');
   const [statusFiltro, setStatusFiltro]    = useState<StatusEquipe | 'todas'>('todas');
@@ -227,7 +228,7 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                                ativo: false },
 { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
               { icon: 'settings-outline',  label: 'Config.',      onPress: () => navigation.navigate('Configuracoes'), ativo: false },
-            ].map((item) => {
+            ].filter((item) => mostrarOperacional || !ITENS_MENU_SEM_TELA.includes(item.label)).map((item) => {
               const hovered = hoverSide === item.label && !item.ativo;
               return (
                 <Pressable
