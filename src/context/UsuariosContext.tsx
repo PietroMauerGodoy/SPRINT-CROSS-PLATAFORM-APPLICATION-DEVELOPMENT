@@ -3,7 +3,11 @@ import { createContext, useContext, useState, ReactNode, useEffect } from 'react
 import { Usuario } from '../types';
 import { mockUsuarios } from '../data/mockData';
 
-const STORAGE_KEY = '@motiva:usuarios';
+// v2: versão da chave bumped de propósito — o formato de Usuario mudou (papel
+// admin/gestor/operador_campo, login em vez de e-mail) e dispositivos com o
+// mock antigo salvo (analista/operario, ou usuários joao/maria/carlos) não
+// devem continuar usando esse dado obsoleto.
+const STORAGE_KEY = '@motiva:usuarios:v2';
 
 type UsuariosContextType = {
   usuarios: Usuario[];

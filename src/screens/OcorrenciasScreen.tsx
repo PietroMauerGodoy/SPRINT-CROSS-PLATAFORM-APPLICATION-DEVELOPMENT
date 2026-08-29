@@ -22,6 +22,7 @@ import { useNotificacoes } from '../context/NotificacoesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import { useAuth } from '../context/AuthContext';
 import { useOcorrencias } from '../context/OcorrenciasContext';
+import { podeCriarOcorrencia } from '../utils/permissions';
 
 import bgRoxo    from '../../assets/images/backgroundroxo.png';
 
@@ -45,7 +46,8 @@ const STATUS_OPTS: { label: string; value: Ocorrencia['status'] | 'todos' }[] = 
 
 export default function OcorrenciasScreen({ navigation }: Props) {
   const { adicionarNotificacao } = useNotificacoes();
-  const { logout } = useAuth();
+  const { usuario, logout } = useAuth();
+  const podeCriar = usuario ? podeCriarOcorrencia(usuario) : false;
   const { notifPrefs } = useConfiguracoes();
   const { ocorrencias, adicionarOcorrencia } = useOcorrencias();
   const [busca, setBusca]             = useState('');
@@ -188,10 +190,12 @@ export default function OcorrenciasScreen({ navigation }: Props) {
                 <Text style={s.titulo}>Ocorrências</Text>
                 <Text style={s.subtitulo}>Registro e acompanhamento de ocorrências operacionais</Text>
               </View>
-              <TouchableOpacity style={s.btnNova} onPress={abrirCadastro}>
-                <Ionicons name="add" size={15} color="#fff" />
-                <Text style={s.btnNovaTxt}>Nova Ocorrência</Text>
-              </TouchableOpacity>
+              {podeCriar && (
+                <TouchableOpacity style={s.btnNova} onPress={abrirCadastro}>
+                  <Ionicons name="add" size={15} color="#fff" />
+                  <Text style={s.btnNovaTxt}>Nova Ocorrência</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Cards de resumo */}

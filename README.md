@@ -67,14 +67,16 @@ npx expo start
 ```
 
 ### Credenciais de acesso (dados mockados)
-| Login | Senha | Papel | Escopo |
-|---|---|---|---|
-| `admin` | `123456` | Admin | Acesso total + Parâmetros do Sistema + Gestão de Usuários |
-| `gestor` | `123456` | Gestor | Acesso operacional total (equipes, Kanban, ocorrências, dashboard) — sem acesso a Parâmetros/Usuários |
-| `operador1` | `123456` | Operador de Campo | Só a Equipe Alfa (`#01`) e os trechos dela |
-| `operador2` | `123456` | Operador de Campo | Só a Equipe Beta (`#02`) e os trechos dela |
+| Login | Senha | Nome | Papel | Escopo de acesso |
+|---|---|---|---|---|
+| `admin` | `123456` | Admin Motiva | Admin | Acesso total ao app, mais as duas seções restritas de Configurações: **Parâmetros do Sistema** (pesos de criticidade/SLA) e **Gestão de Usuários** |
+| `joao` | `123456` | João Silva | Gestor | Acesso operacional completo — todas as equipes, todos os trechos do Kanban, todas as Ocorrências, Dashboard completo. Sem acesso a Parâmetros do Sistema/Gestão de Usuários |
+| `maria` | `123456` | Maria Santos | Operador de Campo | Só enxerga a **Equipe Alfa** (`#01`) e os trechos do Kanban vinculados a ela (`equipeId: '#01'`) |
+| `carlos` | `123456` | Carlos Oliveira | Operador de Campo | Só enxerga a **Equipe Beta** (`#02`) e os trechos do Kanban vinculados a ela (`equipeId: '#02'`) |
 
-Contas podem ser criadas/editadas de verdade em **Configurações → Gestão de Usuários** (só visível para Admin) — o que for cadastrado ali passa a valer como login imediatamente.
+Contas ficam definidas em `src/data/mockData.ts` (`mockUsuarios`) e podem ser criadas/editadas de verdade em **Configurações → Gestão de Usuários** (seção só visível para o papel Admin) — o que for cadastrado ali passa a valer como login imediatamente, porque a tela opera sobre o `UsuariosContext` real (não é mock decorativo).
+
+> Se você alterar `mockUsuarios` no código e um login antigo continuar "colado", é porque já existe uma lista salva em `AsyncStorage` no seu navegador/dispositivo (a mesma lógica de seed usada em `EquipesContext`/`KanbanContext`: só usa o mock se não houver nada salvo ainda). As chaves de armazenamento (`@motiva:usuarios:v2`, `@motiva:usuarioLogado:v2`) já foram versionadas uma vez por esse motivo — se voltar a acontecer, suba a versão da chave de novo em `UsuariosContext.tsx`/`AuthContext.tsx`.
 
 ---
 

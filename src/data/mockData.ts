@@ -13,7 +13,7 @@ export const mockUsuarios: Usuario[] = [
   {
     id: 2,
     nome: 'João Silva',
-    usuario: 'gestor',
+    usuario: 'joao',
     email: 'joao.silva@motiva.com',
     senha: '123456',
     cargo: 'Gestor de Operações',
@@ -22,7 +22,7 @@ export const mockUsuarios: Usuario[] = [
   {
     id: 3,
     nome: 'Maria Santos',
-    usuario: 'operador1',
+    usuario: 'maria',
     email: 'maria.santos@motiva.com',
     senha: '123456',
     cargo: 'Operadora de Campo',
@@ -32,7 +32,7 @@ export const mockUsuarios: Usuario[] = [
   {
     id: 4,
     nome: 'Carlos Oliveira',
-    usuario: 'operador2',
+    usuario: 'carlos',
     email: 'carlos.o@motiva.com',
     senha: '123456',
     cargo: 'Operador de Campo',

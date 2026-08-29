@@ -16,6 +16,7 @@ import { colors } from '../theme';
 import { RootStackParamList } from '../types';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../context/AuthContext';
+import { podeAcessarParametrosSistema, podeGerenciarUsuarios } from '../utils/permissions';
 
 import PerfilSection from '../components/configuracoes/PerfilSection';
 import PreferenciasSection from '../components/configuracoes/PreferenciasSection';
@@ -32,7 +33,9 @@ type Props = {
 };
 
 export default function ConfiguracoesScreen({ navigation }: Props) {
-  const { logout } = useAuth();
+  const { usuario, logout } = useAuth();
+  const podeVerUsuarios   = usuario ? podeGerenciarUsuarios(usuario) : false;
+  const podeVerParametros = usuario ? podeAcessarParametrosSistema(usuario) : false;
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [hoverSide, setHoverSide]         = useState<string | null>(null);
   const [showLogout, setShowLogout]       = useState(false);
@@ -107,8 +110,8 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
             <PerfilSection />
             <PreferenciasSection />
             <NotificacoesSection />
-            <UsuariosSection />
-            <ParametrosSistemaSection />
+            {podeVerUsuarios && <UsuariosSection />}
+            {podeVerParametros && <ParametrosSistemaSection />}
             <IntegracoesSection />
             <DadosSistemaSection />
           </ScrollView>

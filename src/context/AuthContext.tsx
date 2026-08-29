@@ -3,7 +3,8 @@ import { createContext, useContext, useState, ReactNode, useEffect } from 'react
 import { Usuario } from '../types';
 import { useUsuarios } from './UsuariosContext';
 
-const STORAGE_KEY = '@motiva:usuarioLogado';
+// v2: mesmo motivo do UsuariosContext — o formato de Usuario mudou de papel.
+const STORAGE_KEY = '@motiva:usuarioLogado:v2';
 
 type AuthContextType = {
   usuario: Usuario | null;
