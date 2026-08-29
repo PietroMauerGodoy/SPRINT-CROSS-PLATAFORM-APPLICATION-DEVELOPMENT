@@ -31,7 +31,7 @@ A lógica de severidade do Kanban é inspirada em parâmetros operacionais reais
 
 - **Instituição:** FIAP
 - **Metodologia:** Design Thinking, entregas por sprint (board no Miro + PDF espelhando o Miro)
-- **Sprint atual:** Sprint 2 — foco em MVP funcional
+- **Sprint atual:** Sprint 3 — foco em MVP funcional
 - **Equipe:**
   - Fernando Melo — RM 564297
   - Patrick Mansour — RM 562970
