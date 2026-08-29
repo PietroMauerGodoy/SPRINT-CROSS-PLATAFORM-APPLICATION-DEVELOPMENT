@@ -22,6 +22,8 @@ import { KanbanItem, RootStackParamList, SeveridadeVegetacao } from '../types';
 import { useNotificacoes } from '../context/NotificacoesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
+import { useAuth } from '../context/AuthContext';
+import { getKanbanItemsVisiveis, podeCriarOuExcluirKanbanItem } from '../utils/permissions';
 import AppHeader from '../components/AppHeader';
 
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
@@ -191,6 +193,9 @@ type Props = {
 export default function KanbanScreen({ navigation, route }: Props) {
   const { itens, adicionarItem, atualizarItem, removerItem, limparColuna: limparColunaCtx } = useKanban();
   const { setStatusEquipe } = useEquipes();
+  const { usuario, logout } = useAuth();
+  const itensVisiveis = usuario ? getKanbanItemsVisiveis(usuario, itens) : itens;
+  const podeCriarExcluir = usuario ? podeCriarOuExcluirKanbanItem(usuario) : false;
   const [rodoviaFiltro, setRodoviaFiltro] = useState('Todas');
   const [dropRodovia, setDropRodovia] = useState(false);
 
@@ -235,8 +240,8 @@ export default function KanbanScreen({ navigation, route }: Props) {
   const [fUltResp,     setFUltResp]     = useState('');
 
   const filtrados = useMemo(
-    () => rodoviaFiltro === 'Todas' ? itens : itens.filter((i) => i.rodovia === rodoviaFiltro),
-    [itens, rodoviaFiltro],
+    () => rodoviaFiltro === 'Todas' ? itensVisiveis : itensVisiveis.filter((i) => i.rodovia === rodoviaFiltro),
+    [itensVisiveis, rodoviaFiltro],
   );
   function colItens(col: typeof COLUNAS[0]) {
     if (col.severidade === null) return filtrados.filter((i) => i.severidade === 'sem_ocorrencia');
@@ -364,12 +369,14 @@ export default function KanbanScreen({ navigation, route }: Props) {
   useEffect(() => {
     const alvo = route.params?.abrirDetalheId;
     if (!alvo || abriuParamRef.current === alvo) return;
-    const item = itens.find((i) => i.id === alvo);
+    // Usa itensVisiveis, não itens: um operário não pode abrir o detalhe de um
+    // trecho fora do escopo dele mesmo que o id chegue por um link direto.
+    const item = itensVisiveis.find((i) => i.id === alvo);
     if (item) {
       abriuParamRef.current = alvo;
       abrirDetalhe(item);
     }
-  }, [route.params?.abrirDetalheId, itens]);
+  }, [route.params?.abrirDetalheId, itensVisiveis]);
   function salvarObs() {
     if (!cardDetalhe) return;
     atualizarItem(cardDetalhe.id, { observacao: detObs });
@@ -560,26 +567,28 @@ export default function KanbanScreen({ navigation, route }: Props) {
                     <View style={[s.colCount, { backgroundColor: col.cor + '33' }]}>
                       <Text style={[s.colCountTxt, { color: col.cor }]}>{cards.length}</Text>
                     </View>
-                    <View style={{ position: 'relative' }}>
-                      <TouchableOpacity style={s.colMenuBtn} onPress={() => setMenuCol(isMenuCol ? null : col.id)}>
-                        <Ionicons name="ellipsis-horizontal" size={15} color="rgba(255,255,255,0.6)" />
-                      </TouchableOpacity>
-                      {isMenuCol && (
-                        <View style={s.colOptMenu}>
-                          <TouchableOpacity style={s.colOptItem}
-                            onPress={() => { setMenuCol(null); abrirCriar(); }}>
-                            <Ionicons name="add-outline" size={14} color="#334155" />
-                            <Text style={s.colOptTxt}>Adicionar cartão</Text>
-                          </TouchableOpacity>
-                          <View style={s.optDivider} />
-                          <TouchableOpacity style={s.colOptItem}
-                            onPress={() => limparColuna(col.severidade)}>
-                            <Ionicons name="trash-outline" size={14} color={colors.error} />
-                            <Text style={[s.colOptTxt, { color: colors.error }]}>Limpar coluna</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
+                    {podeCriarExcluir && (
+                      <View style={{ position: 'relative' }}>
+                        <TouchableOpacity style={s.colMenuBtn} onPress={() => setMenuCol(isMenuCol ? null : col.id)}>
+                          <Ionicons name="ellipsis-horizontal" size={15} color="rgba(255,255,255,0.6)" />
+                        </TouchableOpacity>
+                        {isMenuCol && (
+                          <View style={s.colOptMenu}>
+                            <TouchableOpacity style={s.colOptItem}
+                              onPress={() => { setMenuCol(null); abrirCriar(); }}>
+                              <Ionicons name="add-outline" size={14} color="#334155" />
+                              <Text style={s.colOptTxt}>Adicionar cartão</Text>
+                            </TouchableOpacity>
+                            <View style={s.optDivider} />
+                            <TouchableOpacity style={s.colOptItem}
+                              onPress={() => limparColuna(col.severidade)}>
+                              <Ionicons name="trash-outline" size={14} color={colors.error} />
+                              <Text style={[s.colOptTxt, { color: colors.error }]}>Limpar coluna</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
 
                   {/* Cards list (scrollable) */}
@@ -609,33 +618,35 @@ export default function KanbanScreen({ navigation, route }: Props) {
                     ))}
                   </ScrollView>
 
-                  {/* Quick add */}
-                  {quickAddCol === col.id ? (
-                    <View style={s.quickAdd}>
-                      <TextInput
-                        style={s.quickInput}
-                        placeholder="Nome da equipe..."
-                        placeholderTextColor="rgba(255,255,255,0.4)"
-                        value={quickNome}
-                        onChangeText={setQuickNome}
-                        autoFocus
-                        onSubmitEditing={() => handleQuickAdd(col.severidade)}
-                      />
-                      <View style={s.quickBtns}>
-                        <TouchableOpacity style={s.quickBtnAdd} onPress={() => handleQuickAdd(col.severidade)}>
-                          <Text style={s.quickBtnAddTxt}>Adicionar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => { setQuickAddCol(null); setQuickNome(''); }}>
-                          <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
-                        </TouchableOpacity>
+                  {/* Quick add — só quem pode criar/excluir trecho */}
+                  {podeCriarExcluir && (
+                    quickAddCol === col.id ? (
+                      <View style={s.quickAdd}>
+                        <TextInput
+                          style={s.quickInput}
+                          placeholder="Nome da equipe..."
+                          placeholderTextColor="rgba(255,255,255,0.4)"
+                          value={quickNome}
+                          onChangeText={setQuickNome}
+                          autoFocus
+                          onSubmitEditing={() => handleQuickAdd(col.severidade)}
+                        />
+                        <View style={s.quickBtns}>
+                          <TouchableOpacity style={s.quickBtnAdd} onPress={() => handleQuickAdd(col.severidade)}>
+                            <Text style={s.quickBtnAddTxt}>Adicionar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => { setQuickAddCol(null); setQuickNome(''); }}>
+                            <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                  ) : (
-                    <TouchableOpacity style={s.colAddBtn}
-                      onPress={() => { setQuickAddCol(col.id); setQuickNome(''); }}>
-                      <Ionicons name="add" size={15} color="rgba(255,255,255,0.55)" />
-                      <Text style={s.colAddTxt}>Adicionar cartão</Text>
-                    </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity style={s.colAddBtn}
+                        onPress={() => { setQuickAddCol(col.id); setQuickNome(''); }}>
+                        <Ionicons name="add" size={15} color="rgba(255,255,255,0.55)" />
+                        <Text style={s.colAddTxt}>Adicionar cartão</Text>
+                      </TouchableOpacity>
+                    )
                   )}
                 </View>
               );
@@ -659,7 +670,7 @@ export default function KanbanScreen({ navigation, route }: Props) {
 
       {/* ── MENU FLUTUANTE DO CARD (fora do ScrollView, position fixed) ──────── */}
       {menuCard !== null && menuCardPos !== null && (() => {
-        const item = itens.find((i) => i.id === menuCard);
+        const item = itensVisiveis.find((i) => i.id === menuCard);
         if (!item) return null;
         return (
           <View
@@ -691,11 +702,15 @@ export default function KanbanScreen({ navigation, route }: Props) {
               <Ionicons name="create-outline" size={14} color="#334155" />
               <Text style={s.colOptTxt}>Editar</Text>
             </TouchableOpacity>
-            <View style={s.optDivider} />
-            <TouchableOpacity style={s.colOptItem} onPress={() => { setMenuCard(null); setMenuCardPos(null); excluir(item); }}>
-              <Ionicons name="trash-outline" size={14} color={colors.error} />
-              <Text style={[s.colOptTxt, { color: colors.error }]}>Excluir</Text>
-            </TouchableOpacity>
+            {podeCriarExcluir && (
+              <>
+                <View style={s.optDivider} />
+                <TouchableOpacity style={s.colOptItem} onPress={() => { setMenuCard(null); setMenuCardPos(null); excluir(item); }}>
+                  <Ionicons name="trash-outline" size={14} color={colors.error} />
+                  <Text style={[s.colOptTxt, { color: colors.error }]}>Excluir</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         );
       })()}
@@ -714,7 +729,7 @@ export default function KanbanScreen({ navigation, route }: Props) {
                 <Text style={s.smallBtnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.smallBtnConfirm, { backgroundColor: colors.primary }]}
-                onPress={() => navigation.replace('Login')}>
+                onPress={() => { logout(); navigation.replace('Login'); }}>
                 <MaterialIcons name="logout" size={14} color="#fff" />
                 <Text style={s.smallBtnConfirmTxt}>Sair</Text>
               </TouchableOpacity>
@@ -830,10 +845,12 @@ export default function KanbanScreen({ navigation, route }: Props) {
                   </View>
                 </ScrollView>
                 <View style={s.detFooter}>
-                  <TouchableOpacity style={s.detBtnDel} onPress={() => excluir(cardDetalhe)}>
-                    <Ionicons name="trash-outline" size={14} color={colors.error} />
-                    <Text style={s.detBtnDelTxt}>Excluir</Text>
-                  </TouchableOpacity>
+                  {podeCriarExcluir && (
+                    <TouchableOpacity style={s.detBtnDel} onPress={() => excluir(cardDetalhe)}>
+                      <Ionicons name="trash-outline" size={14} color={colors.error} />
+                      <Text style={s.detBtnDelTxt}>Excluir</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity style={s.detBtnEdit} onPress={() => abrirEditar(cardDetalhe)}>
                     <Ionicons name="create-outline" size={14} color={colors.primary} />
                     <Text style={s.detBtnEditTxt}>Editar</Text>

@@ -5,15 +5,39 @@ export const mockUsuarios: Usuario[] = [
     id: 1,
     nome: 'Admin Motiva',
     usuario: 'admin',
+    email: 'admin@motiva.com',
     senha: '123456',
     cargo: 'Administrador',
+    papel: 'admin',
   },
   {
     id: 2,
     nome: 'João Silva',
-    usuario: 'joao',
+    usuario: 'gestor',
+    email: 'joao.silva@motiva.com',
     senha: '123456',
-    cargo: 'Analista de Segurança',
+    cargo: 'Gestor de Operações',
+    papel: 'gestor',
+  },
+  {
+    id: 3,
+    nome: 'Maria Santos',
+    usuario: 'operador1',
+    email: 'maria.santos@motiva.com',
+    senha: '123456',
+    cargo: 'Operadora de Campo',
+    papel: 'operador_campo',
+    equipeId: '#01', // Equipe Alfa
+  },
+  {
+    id: 4,
+    nome: 'Carlos Oliveira',
+    usuario: 'operador2',
+    email: 'carlos.o@motiva.com',
+    senha: '123456',
+    cargo: 'Operador de Campo',
+    papel: 'operador_campo',
+    equipeId: '#02', // Equipe Beta
   },
 ];
 

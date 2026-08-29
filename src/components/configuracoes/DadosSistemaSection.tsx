@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
 import { useConfiguracoes } from '../../context/ConfiguracoesContext';
+import { useUsuarios } from '../../context/UsuariosContext';
 import { useToast } from '../toast/ToastContext';
 import SectionCard from './SectionCard';
 import { mockEquipes, mockOcorrencias } from '../../data/mockData';
@@ -10,16 +11,19 @@ import { mockEquipes, mockOcorrencias } from '../../data/mockData';
 export default function DadosSistemaSection() {
   const {
     logAtividades, registrarAtividade,
-    usuarios, pesoManutencao, pesoClima, pesoCrescimento,
+    pesoManutencao, pesoClima, pesoCrescimento,
     frequenciaReavaliacao, limiteCriticidade, notifPrefs,
   } = useConfiguracoes();
+  const { usuarios } = useUsuarios();
   const { showToast } = useToast();
 
   function exportarBackup() {
+    // Nunca inclui a senha no backup exportável, mesmo sendo dado mockado.
+    const usuariosSemSenha = usuarios.map(({ senha, ...resto }) => resto);
     const backup = {
       exportadoEm: new Date().toISOString(),
       versao: '1.0.0 (Sprint 2)',
-      usuarios,
+      usuarios: usuariosSemSenha,
       equipes: mockEquipes,
       ocorrencias: mockOcorrencias,
       parametrosSistema: {

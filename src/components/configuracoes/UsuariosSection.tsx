@@ -2,33 +2,39 @@ import { useState } from 'react';
 import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
-import { useConfiguracoes, PapelUsuario } from '../../context/ConfiguracoesContext';
+import { PapelUsuario } from '../../types';
+import { useUsuarios } from '../../context/UsuariosContext';
+import { useEquipes } from '../../context/EquipesContext';
+import { useConfiguracoes } from '../../context/ConfiguracoesContext';
 import { useToast } from '../toast/ToastContext';
 import SectionCard from './SectionCard';
 
 const perfilLogo = require('../../../assets/images/perfil_logo.png');
 
+const PAPEL_LABEL: Record<PapelUsuario, string> = {
+  admin: 'Admin',
+  gestor: 'Gestor',
+  operador_campo: 'Operador de Campo',
+};
+
 const PAPEL_COR: Record<PapelUsuario, string> = {
-  Admin:            '#5E22F3',
-  Gestor:           '#3B82F6',
-  'Operador de Campo': '#F59E0B',
+  admin: '#5E22F3',
+  gestor: '#3B82F6',
+  operador_campo: '#F59E0B',
 };
 
 const PAPEL_BG: Record<PapelUsuario, string> = {
-  Admin:            '#EDE9FE',
-  Gestor:           '#DBEAFE',
-  'Operador de Campo': '#FEF3C7',
+  admin: '#EDE9FE',
+  gestor: '#DBEAFE',
+  operador_campo: '#FEF3C7',
 };
 
-const PAPEL_OPTS: PapelUsuario[] = ['Admin', 'Gestor', 'Operador de Campo'];
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PAPEL_OPTS: PapelUsuario[] = ['admin', 'gestor', 'operador_campo'];
 
 export default function UsuariosSection() {
-  const {
-    usuarios, adicionarUsuario, editarUsuario, removerUsuario,
-    registrarAtividade,
-  } = useConfiguracoes();
+  const { usuarios, adicionarUsuario, editarUsuario, removerUsuario } = useUsuarios();
+  const { equipes } = useEquipes();
+  const { registrarAtividade } = useConfiguracoes();
   const { showToast } = useToast();
 
   const [modalAberto, setModalAberto] = useState(false);
@@ -37,16 +43,22 @@ export default function UsuariosSection() {
 
   // Campos do formulário
   const [fNome,   setFNome]   = useState('');
+  const [fUsuario, setFUsuario] = useState('');
   const [fEmail,  setFEmail]  = useState('');
-  const [fPapel,  setFPapel]  = useState<PapelUsuario>('Operador de Campo');
-  const [erroNome,  setErroNome]  = useState<string | null>(null);
-  const [erroEmail, setErroEmail] = useState<string | null>(null);
-  const [erroEmailDup, setErroEmailDup] = useState<string | null>(null);
+  const [fSenha,  setFSenha]  = useState('');
+  const [fPapel,  setFPapel]  = useState<PapelUsuario>('operador_campo');
+  const [fEquipeId, setFEquipeId] = useState<string | null>(null);
+  const [erroNome,    setErroNome]    = useState<string | null>(null);
+  const [erroUsuario, setErroUsuario] = useState<string | null>(null);
+  const [erroSenha,   setErroSenha]   = useState<string | null>(null);
+  const [erroEquipe,  setErroEquipe]  = useState<string | null>(null);
+  const [erroUsuarioDup, setErroUsuarioDup] = useState<string | null>(null);
 
   function abrirAdicionar() {
     setEditandoId(null);
-    setFNome(''); setFEmail(''); setFPapel('Operador de Campo');
-    setErroNome(null); setErroEmail(null); setErroEmailDup(null);
+    setFNome(''); setFUsuario(''); setFEmail(''); setFSenha('');
+    setFPapel('operador_campo'); setFEquipeId(null);
+    setErroNome(null); setErroUsuario(null); setErroSenha(null); setErroEquipe(null); setErroUsuarioDup(null);
     setModalAberto(true);
   }
 
@@ -54,39 +66,59 @@ export default function UsuariosSection() {
     const u = usuarios.find((x) => x.id === id);
     if (!u) return;
     setEditandoId(id);
-    setFNome(u.nome); setFEmail(u.email); setFPapel(u.papel);
-    setErroNome(null); setErroEmail(null); setErroEmailDup(null);
+    setFNome(u.nome); setFUsuario(u.usuario); setFEmail(u.email ?? ''); setFSenha('');
+    setFPapel(u.papel); setFEquipeId(u.equipeId ?? null);
+    setErroNome(null); setErroUsuario(null); setErroSenha(null); setErroEquipe(null); setErroUsuarioDup(null);
     setModalAberto(true);
   }
 
   function validarNome(v: string): string | null {
-    if (v.trim() === '') return 'O nome é obrigatório.';
+    return v.trim() === '' ? 'O nome é obrigatório.' : null;
+  }
+  function validarUsuario(v: string): string | null {
+    return v.trim() === '' ? 'O login é obrigatório.' : null;
+  }
+  function validarSenha(v: string): string | null {
+    if (editandoId !== null && v === '') return null; // edição: em branco = mantém a atual
+    if (v.length < 6) return 'A senha deve ter no mínimo 6 caracteres.';
     return null;
   }
-  function validarEmail(v: string): string | null {
-    if (v.trim() === '') return 'O e-mail é obrigatório.';
-    if (!EMAIL_REGEX.test(v.trim())) return 'E-mail em formato inválido.';
+  function validarEquipe(v: string | null, papel: PapelUsuario): string | null {
+    if (papel === 'operador_campo' && !v) return 'Selecione a equipe do operador.';
     return null;
   }
 
   function salvar() {
-    const eNome  = validarNome(fNome);
-    const eEmail = validarEmail(fEmail);
+    const eNome    = validarNome(fNome);
+    const eUsuario = validarUsuario(fUsuario);
+    const eSenha   = validarSenha(fSenha);
+    const eEquipe  = validarEquipe(fEquipeId, fPapel);
     setErroNome(eNome);
-    setErroEmail(eEmail);
-    setErroEmailDup(null);
-    if (eNome || eEmail) return;
+    setErroUsuario(eUsuario);
+    setErroSenha(eSenha);
+    setErroEquipe(eEquipe);
+    setErroUsuarioDup(null);
+    if (eNome || eUsuario || eSenha || eEquipe) return;
 
-    const dados = { nome: fNome.trim(), email: fEmail.trim(), papel: fPapel, avatar: 'perfil_logo' };
+    const usuarioExistente = editandoId !== null ? usuarios.find((u) => u.id === editandoId) : null;
+    const dados = {
+      nome: fNome.trim(),
+      usuario: fUsuario.trim(),
+      email: fEmail.trim() || undefined,
+      senha: fSenha !== '' ? fSenha : (usuarioExistente?.senha ?? fSenha),
+      cargo: PAPEL_LABEL[fPapel],
+      papel: fPapel,
+      equipeId: fPapel === 'operador_campo' ? (fEquipeId ?? undefined) : undefined,
+    };
 
     if (editandoId === null) {
       const ok = adicionarUsuario(dados);
-      if (!ok) { setErroEmailDup('Este e-mail já está cadastrado.'); return; }
-      registrarAtividade(`Adicionou o usuário "${fNome.trim()}" (${fPapel})`);
+      if (!ok) { setErroUsuarioDup('Este login já está em uso.'); return; }
+      registrarAtividade(`Adicionou o usuário "${fNome.trim()}" (${PAPEL_LABEL[fPapel]})`);
       showToast('Usuário adicionado com sucesso!');
     } else {
       const ok = editarUsuario(editandoId, dados);
-      if (!ok) { setErroEmailDup('Este e-mail já está em uso por outro usuário.'); return; }
+      if (!ok) { setErroUsuarioDup('Este login já está em uso por outro usuário.'); return; }
       registrarAtividade(`Editou o usuário "${fNome.trim()}"`);
       showToast('Usuário atualizado com sucesso!');
     }
@@ -115,7 +147,7 @@ export default function UsuariosSection() {
         {/* Header */}
         <View style={styles.thead}>
           <Text style={[styles.th, styles.thUsuario]}>Usuário</Text>
-          <Text style={[styles.th, styles.thEmail]}>E-mail</Text>
+          <Text style={[styles.th, styles.thLogin]}>Login</Text>
           <Text style={[styles.th, styles.thPapel]}>Papel</Text>
           <Text style={[styles.th, styles.thAcoes]}>Ações</Text>
         </View>
@@ -125,13 +157,18 @@ export default function UsuariosSection() {
           <View key={u.id} style={styles.trow}>
             <View style={[styles.td, styles.thUsuario, styles.cellUsuario]}>
               <Image source={perfilLogo} style={styles.avatar} resizeMode="cover" />
-              <Text style={styles.tdNome}>{u.nome}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tdNome}>{u.nome}</Text>
+                {u.papel === 'operador_campo' && u.equipeId ? (
+                  <Text style={styles.tdSub}>{u.equipeId}</Text>
+                ) : null}
+              </View>
             </View>
-            <Text style={[styles.td, styles.thEmail, styles.tdEmail]} numberOfLines={1}>{u.email}</Text>
+            <Text style={[styles.td, styles.thLogin, styles.tdEmail]} numberOfLines={1}>{u.usuario}</Text>
             <View style={[styles.td, styles.thPapel]}>
               <View style={[styles.papelPill, { backgroundColor: PAPEL_BG[u.papel] }]}>
                 <View style={[styles.papelDot, { backgroundColor: PAPEL_COR[u.papel] }]} />
-                <Text style={[styles.papelTxt, { color: PAPEL_COR[u.papel] }]}>{u.papel}</Text>
+                <Text style={[styles.papelTxt, { color: PAPEL_COR[u.papel] }]}>{PAPEL_LABEL[u.papel]}</Text>
               </View>
             </View>
             <View style={[styles.td, styles.thAcoes, styles.cellAcoes]}>
@@ -172,18 +209,43 @@ export default function UsuariosSection() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>E-mail</Text>
+              <Text style={styles.label}>Login</Text>
               <TextInput
-                style={[styles.input, (erroEmail || erroEmailDup) && styles.inputErro]}
+                style={[styles.input, (erroUsuario || erroUsuarioDup) && styles.inputErro]}
+                value={fUsuario}
+                onChangeText={(t) => { setFUsuario(t); if (erroUsuario) setErroUsuario(validarUsuario(t)); setErroUsuarioDup(null); }}
+                placeholder="ex: operador3"
+                placeholderTextColor={colors.gray400}
+                autoCapitalize="none"
+              />
+              {erroUsuario ? <Text style={styles.erro}>{erroUsuario}</Text> : null}
+              {erroUsuarioDup ? <Text style={styles.erro}>{erroUsuarioDup}</Text> : null}
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>E-mail (opcional)</Text>
+              <TextInput
+                style={styles.input}
                 value={fEmail}
-                onChangeText={(t) => { setFEmail(t); if (erroEmail) setErroEmail(validarEmail(t)); setErroEmailDup(null); }}
+                onChangeText={setFEmail}
                 placeholder="usuario@motiva.com"
                 placeholderTextColor={colors.gray400}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              {erroEmail ? <Text style={styles.erro}>{erroEmail}</Text> : null}
-              {erroEmailDup ? <Text style={styles.erro}>{erroEmailDup}</Text> : null}
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>{editandoId === null ? 'Senha' : 'Nova senha (opcional)'}</Text>
+              <TextInput
+                style={[styles.input, erroSenha && styles.inputErro]}
+                value={fSenha}
+                onChangeText={(t) => { setFSenha(t); if (erroSenha) setErroSenha(validarSenha(t)); }}
+                placeholder={editandoId === null ? 'Mínimo 6 caracteres' : 'Deixe em branco para manter a atual'}
+                placeholderTextColor={colors.gray400}
+                secureTextEntry
+              />
+              {erroSenha ? <Text style={styles.erro}>{erroSenha}</Text> : null}
             </View>
 
             <View style={styles.field}>
@@ -193,13 +255,31 @@ export default function UsuariosSection() {
                   <TouchableOpacity
                     key={p}
                     style={[styles.chip, fPapel === p && { backgroundColor: PAPEL_COR[p], borderColor: PAPEL_COR[p] }]}
-                    onPress={() => setFPapel(p)}
+                    onPress={() => { setFPapel(p); setErroEquipe(null); }}
                   >
-                    <Text style={[styles.chipTxt, fPapel === p && styles.chipTxtOn]}>{p}</Text>
+                    <Text style={[styles.chipTxt, fPapel === p && styles.chipTxtOn]}>{PAPEL_LABEL[p]}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
+
+            {fPapel === 'operador_campo' && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Equipe</Text>
+                <View style={styles.chipRow}>
+                  {equipes.map((eq) => (
+                    <TouchableOpacity
+                      key={eq.id}
+                      style={[styles.chip, fEquipeId === eq.id && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                      onPress={() => { setFEquipeId(eq.id); setErroEquipe(null); }}
+                    >
+                      <Text style={[styles.chipTxt, fEquipeId === eq.id && styles.chipTxtOn]}>{eq.nome}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {erroEquipe ? <Text style={styles.erro}>{erroEquipe}</Text> : null}
+              </View>
+            )}
 
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setModalAberto(false)}>
@@ -277,7 +357,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   thUsuario: { flex: 1.5 },
-  thEmail:   { flex: 2 },
+  thLogin:   { flex: 1.4 },
   thPapel:   { flex: 1.2 },
   thAcoes:   { width: 64 },
   trow: {
@@ -314,6 +394,11 @@ const styles = StyleSheet.create({
   tdEmail: {
     fontSize: 11,
     color: '#94A3B8',
+  },
+  tdSub: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 1,
   },
   papelPill: {
     flexDirection: 'row',

@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../theme';
 import { RootStackParamList } from '../types';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../context/AuthContext';
 
 import PerfilSection from '../components/configuracoes/PerfilSection';
 import PreferenciasSection from '../components/configuracoes/PreferenciasSection';
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export default function ConfiguracoesScreen({ navigation }: Props) {
+  const { logout } = useAuth();
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [hoverSide, setHoverSide]         = useState<string | null>(null);
   const [showLogout, setShowLogout]       = useState(false);
@@ -126,7 +128,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
               <TouchableOpacity style={s.delBtnCancel} onPress={() => setShowLogout(false)}>
                 <Text style={s.delBtnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => navigation.replace('Login')}>
+              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => { logout(); navigation.replace('Login'); }}>
                 <MaterialIcons name="logout" size={14} color="#fff" />
                 <Text style={s.delBtnConfirmTxt}>Sair</Text>
               </TouchableOpacity>

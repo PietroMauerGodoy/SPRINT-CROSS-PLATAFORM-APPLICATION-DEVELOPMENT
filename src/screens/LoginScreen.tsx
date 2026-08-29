@@ -18,7 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, radius } from '../theme';
 import { RootStackParamList } from '../types';
-import { mockUsuarios } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 import bgRoxo from '../../assets/images/backgroundroxo.png';
 import logoNegativo from '../../assets/images/Motiva_Logo-Negativo.png';
@@ -34,6 +34,7 @@ type Erros = {
 };
 
 export default function LoginScreen({ navigation }: Props) {
+  const { login } = useAuth();
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -66,13 +67,11 @@ export default function LoginScreen({ navigation }: Props) {
     setErros({});
 
     setTimeout(() => {
-      const encontrado = mockUsuarios.find(
-        (u) => u.usuario === usuario.trim() && u.senha === senha
-      );
+      const autenticou = login(usuario.trim(), senha);
 
       setLoading(false);
 
-      if (encontrado) {
+      if (autenticou) {
         navigation.replace('Equipes');
       } else {
         setErros({ geral: 'Usuário ou senha incorretos. Verifique os dados e tente novamente.' });

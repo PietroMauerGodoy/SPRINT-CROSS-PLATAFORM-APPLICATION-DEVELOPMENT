@@ -20,6 +20,7 @@ import { colors } from '../theme';
 import { Ocorrencia, RiscoNivel, RootStackParamList } from '../types';
 import { useNotificacoes } from '../context/NotificacoesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
+import { useAuth } from '../context/AuthContext';
 import { useOcorrencias } from '../context/OcorrenciasContext';
 
 import bgRoxo    from '../../assets/images/backgroundroxo.png';
@@ -44,6 +45,7 @@ const STATUS_OPTS: { label: string; value: Ocorrencia['status'] | 'todos' }[] = 
 
 export default function OcorrenciasScreen({ navigation }: Props) {
   const { adicionarNotificacao } = useNotificacoes();
+  const { logout } = useAuth();
   const { notifPrefs } = useConfiguracoes();
   const { ocorrencias, adicionarOcorrencia } = useOcorrencias();
   const [busca, setBusca]             = useState('');
@@ -400,6 +402,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
               </TouchableOpacity>
               <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => {
                 setShowLogout(false);
+                logout();
                 navigation.replace('Login');
               }}>
                 <Ionicons name="log-out-outline" size={14} color="#fff" />

@@ -24,6 +24,8 @@ import { useNotificacoes } from '../context/NotificacoesContext';
 import { useEquipes } from '../context/EquipesContext';
 import { useKanban } from '../context/KanbanContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
+import { useAuth } from '../context/AuthContext';
+import { getEquipesVisiveis, podeGerenciarEquipes } from '../utils/permissions';
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
 import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
 import perfilLogo from '../../assets/images/perfil_logo.png';
@@ -47,6 +49,9 @@ export default function EquipesScreen({ navigation }: Props) {
 const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } = useEquipes();
   const { adicionarItem, removerPorEquipeId } = useKanban();
   const { modoCompacto } = useConfiguracoes();
+  const { usuario, logout } = useAuth();
+  const equipesVisiveis = usuario ? getEquipesVisiveis(usuario, equipes) : equipes;
+  const podeGerenciar = usuario ? podeGerenciarEquipes(usuario) : false;
   const [busca, setBusca]                  = useState('');
   const [rodoviaFiltro, setRodoviaFiltro]  = useState('Todas');
   const [statusFiltro, setStatusFiltro]    = useState<StatusEquipe | 'todas'>('todas');
@@ -71,12 +76,12 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
 
   const filtradas = useMemo(() => {
     const t = busca.toLowerCase();
-    return equipes.filter((e) =>
+    return equipesVisiveis.filter((e) =>
       (e.nome.toLowerCase().includes(t) || e.responsavel.toLowerCase().includes(t) || e.id.toLowerCase().includes(t)) &&
       (rodoviaFiltro === 'Todas' || e.rodovia === rodoviaFiltro) &&
       (statusFiltro  === 'todas' || e.status  === statusFiltro)
     );
-  }, [equipes, busca, rodoviaFiltro, statusFiltro]);
+  }, [equipesVisiveis, busca, rodoviaFiltro, statusFiltro]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / ITENS_POR_PAGINA));
   const paginaAtual  = Math.min(pagina, totalPaginas);
@@ -263,10 +268,12 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
                   Controle operacional da malha rodoviária federal e estadual sob concessão
                 </Text>
               </View>
-              <TouchableOpacity style={s.btnCriar} onPress={abrirModalCriar}>
-                <Ionicons name="add" size={15} color="#fff" />
-                <Text style={s.btnCriarTxt}>Criar Novas Equipes</Text>
-              </TouchableOpacity>
+              {podeGerenciar && (
+                <TouchableOpacity style={s.btnCriar} onPress={abrirModalCriar}>
+                  <Ionicons name="add" size={15} color="#fff" />
+                  <Text style={s.btnCriarTxt}>Criar Novas Equipes</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Barra busca + filtros */}
@@ -380,16 +387,22 @@ paginadas.map((eq, idx) => (
                   </View>
 
                   <View style={[s.cAc, s.cellRow]}>
-                    <TouchableOpacity style={s.acBtnEdit} onPress={(e) => { e.stopPropagation?.(); abrirModalEditar(eq); }}>
-                      <Ionicons name="create-outline" size={13} color={colors.primary} />
-                      <Text style={s.acBtnTxt}>Editar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.acBtnStatus} onPress={(e) => { e.stopPropagation?.(); handleAlternarStatus(eq.id); }}>
-                      <Ionicons name="swap-horizontal-outline" size={14} color="#0EA5E9" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.acBtnDel} onPress={(e) => { e.stopPropagation?.(); handleExcluir(eq); }}>
-                      <Ionicons name="trash-outline" size={14} color={colors.error} />
-                    </TouchableOpacity>
+                    {podeGerenciar ? (
+                      <>
+                        <TouchableOpacity style={s.acBtnEdit} onPress={(e) => { e.stopPropagation?.(); abrirModalEditar(eq); }}>
+                          <Ionicons name="create-outline" size={13} color={colors.primary} />
+                          <Text style={s.acBtnTxt}>Editar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={s.acBtnStatus} onPress={(e) => { e.stopPropagation?.(); handleAlternarStatus(eq.id); }}>
+                          <Ionicons name="swap-horizontal-outline" size={14} color="#0EA5E9" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={s.acBtnDel} onPress={(e) => { e.stopPropagation?.(); handleExcluir(eq); }}>
+                          <Ionicons name="trash-outline" size={14} color={colors.error} />
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <Text style={s.tdSub}>Somente leitura</Text>
+                    )}
                   </View>
                 </TouchableOpacity>
               ))
@@ -490,7 +503,7 @@ paginadas.map((eq, idx) => (
               <TouchableOpacity style={s.delBtnCancel} onPress={() => setShowLogout(false)}>
                 <Text style={s.delBtnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => navigation.replace('Login')}>
+              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => { logout(); navigation.replace('Login'); }}>
                 <MaterialIcons name="logout" size={14} color="#fff" />
                 <Text style={s.delBtnConfirmTxt}>Sair</Text>
               </TouchableOpacity>

@@ -3,16 +3,6 @@ import { createContext, useContext, useState, ReactNode, useEffect } from 'react
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
-export type PapelUsuario = 'Admin' | 'Gestor' | 'Operador de Campo';
-
-export type UsuarioConfig = {
- id: number;
- nome: string;
- email: string;
- papel: PapelUsuario;
- avatar?: string;
-};
-
 export type NotificacaoPreferencia = {
  novaOcorrenciaCritica: boolean;
  mudancaStatusEquipe:   boolean;
@@ -29,13 +19,6 @@ export type AtividadeLog = {
 };
 
 // ─── Dados mockados ─────────────────────────────────────────────────────────
-
-const MOCK_USUARIOS: UsuarioConfig[] = [
- { id: 1, nome: 'Admin Motiva',  email: 'admin@motiva.com',   papel: 'Admin',             avatar: 'perfil_logo' },
- { id: 2, nome: 'João Silva',    email: 'joao.silva@motiva.com', papel: 'Gestor',         avatar: 'perfil_logo' },
- { id: 3, nome: 'Maria Santos',  email: 'maria.santos@motiva.com', papel: 'Operador de Campo', avatar: 'perfil_logo' },
- { id: 4, nome: 'Carlos Oliveira', email: 'carlos.o@motiva.com', papel: 'Operador de Campo', avatar: 'perfil_logo' },
-];
 
 const MOCK_LOG: AtividadeLog[] = [
  { id: 5,  usuario: 'Admin Motiva',  acao: 'Atualizou os parâmetros de criticidade da vegetação', dataHora: '12/06/2026 09:32' },
@@ -82,11 +65,6 @@ type ConfiguracoesContextType = {
  notifPrefs: NotificacaoPreferencia;
  setNotifPref: (k: keyof NotificacaoPreferencia, v: boolean) => void;
 
- usuarios: UsuarioConfig[];
- adicionarUsuario: (dados: Omit<UsuarioConfig, 'id'>) => boolean;
- editarUsuario: (id: number, dados: Omit<UsuarioConfig, 'id'>) => boolean;
- removerUsuario: (id: number) => void;
-
  pesoManutencao: number;
  pesoClima: number;
  pesoCrescimento: number;
@@ -117,7 +95,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
  const [modoCompacto, setModoCompacto] = useState(false);
 
  const [notifPrefs, setNotifPrefs] = useState<NotificacaoPreferencia>(DEFAULT_PREFS);
- const [usuarios, setUsuarios] = useState<UsuarioConfig[]>(MOCK_USUARIOS);
  const [pesoManutencao, setPesoManutencao] = useState(40);
  const [pesoClima, setPesoClima] = useState(30);
  const [pesoCrescimento, setPesoCrescimento] = useState(30);
@@ -146,7 +123,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
          idioma: string;
          modoCompacto: boolean;
          notifPrefs: NotificacaoPreferencia;
-         usuarios: UsuarioConfig[];
          pesoManutencao: number;
          pesoClima: number;
          pesoCrescimento: number;
@@ -165,7 +141,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
        if (parsed.idioma !== undefined) setIdioma(parsed.idioma);
        if (parsed.modoCompacto !== undefined) setModoCompacto(parsed.modoCompacto);
        if (parsed.notifPrefs) setNotifPrefs(parsed.notifPrefs);
-       if (parsed.usuarios) setUsuarios(parsed.usuarios);
        if (parsed.pesoManutencao !== undefined) setPesoManutencao(parsed.pesoManutencao);
        if (parsed.pesoClima !== undefined) setPesoClima(parsed.pesoClima);
        if (parsed.pesoCrescimento !== undefined) setPesoCrescimento(parsed.pesoCrescimento);
@@ -197,7 +172,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
      idioma,
      modoCompacto,
      notifPrefs,
-     usuarios,
      pesoManutencao,
      pesoClima,
      pesoCrescimento,
@@ -208,7 +182,7 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
    };
 
    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload)).catch(() => undefined);
- }, [isHydrated, nomePerfil, emailPerfil, avatarPerfil, temaEscuro, idioma, modoCompacto, notifPrefs, usuarios, pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao, limiteCriticidade, apiClimaConectada, logAtividades]);
+ }, [isHydrated, nomePerfil, emailPerfil, avatarPerfil, temaEscuro, idioma, modoCompacto, notifPrefs, pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao, limiteCriticidade, apiClimaConectada, logAtividades]);
 
  function setNotifPref(k: keyof NotificacaoPreferencia, v: boolean) {
    setNotifPrefs((prev) => ({ ...prev, [k]: v }));
@@ -224,34 +198,12 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
    setLogAtividades((prev) => [nova, ...prev]);
  }
 
- function adicionarUsuario(dados: Omit<UsuarioConfig, 'id'>): boolean {
-   const jaExiste = usuarios.some((u) => u.email.toLowerCase() === dados.email.toLowerCase());
-   if (jaExiste) return false;
-   const novoId = usuarios.length ? Math.max(...usuarios.map((u) => u.id)) + 1 : 1;
-   setUsuarios((prev) => [...prev, { ...dados, id: novoId }]);
-   return true;
- }
-
- function editarUsuario(id: number, dados: Omit<UsuarioConfig, 'id'>): boolean {
-   const duplicado = usuarios.some(
-     (u) => u.id !== id && u.email.toLowerCase() === dados.email.toLowerCase(),
-   );
-   if (duplicado) return false;
-   setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, ...dados } : u)));
-   return true;
- }
-
- function removerUsuario(id: number) {
-   setUsuarios((prev) => prev.filter((u) => u.id !== id));
- }
-
  return (
    <ConfiguracoesContext.Provider
      value={{
        nomePerfil, emailPerfil, avatarPerfil, setNomePerfil, setEmailPerfil, setAvatarPerfil,
        temaEscuro, setTemaEscuro, idioma, setIdioma, modoCompacto, setModoCompacto,
        notifPrefs, setNotifPref,
-       usuarios, adicionarUsuario, editarUsuario, removerUsuario,
        pesoManutencao, pesoClima, pesoCrescimento,
        setPesoManutencao, setPesoClima, setPesoCrescimento,
        frequenciaReavaliacao, setFrequenciaReavaliacao,

@@ -11,6 +11,7 @@ import { colors } from '../theme';
 import { RootStackParamList } from '../types';
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics';
 import { useHistorico } from '../context/HistoricoContext';
+import { useAuth } from '../context/AuthContext';
 
 import bgRoxo from '../../assets/images/backgroundroxo.png';
 
@@ -28,6 +29,7 @@ type Props = {
 
 // Placeholder — KPIs, gráficos, ranking e recomendações entram nas próximas etapas.
 export default function DashboardScreen({ navigation }: Props) {
+  const { logout } = useAuth();
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [showLogout, setShowLogout] = useState(false);
 
@@ -160,6 +162,7 @@ export default function DashboardScreen({ navigation }: Props) {
               </TouchableOpacity>
               <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => {
                 setShowLogout(false);
+                logout();
                 navigation.replace('Login');
               }}>
                 <Ionicons name="log-out-outline" size={14} color="#fff" />

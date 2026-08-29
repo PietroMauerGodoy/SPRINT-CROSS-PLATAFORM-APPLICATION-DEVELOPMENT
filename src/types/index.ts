@@ -12,12 +12,19 @@ export type Ocorrencia = {
   responsavel?: string;
 };
 
+export type PapelUsuario = 'admin' | 'gestor' | 'operador_campo';
+
 export type Usuario = {
   id: number;
   nome: string;
   usuario: string;
+  /** Só para exibição na tela de Gestão de Usuários — o login usa `usuario`, não isto. */
+  email?: string;
   senha: string;
   cargo: string;
+  papel: PapelUsuario;
+  /** Equipe à qual o usuário pertence — usado para escopo de acesso do papel 'operador_campo'. */
+  equipeId?: string;
   avatar?: string;
 };
 

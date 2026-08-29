@@ -67,10 +67,14 @@ npx expo start
 ```
 
 ### Credenciais de acesso (dados mockados)
-| Usuário | Senha    | Cargo               |
-|---------|----------|---------------------|
-| `admin` | `123456` | Administrador       |
-| `joao`  | `123456` | Analista de Segurança |
+| Login | Senha | Papel | Escopo |
+|---|---|---|---|
+| `admin` | `123456` | Admin | Acesso total + Parâmetros do Sistema + Gestão de Usuários |
+| `gestor` | `123456` | Gestor | Acesso operacional total (equipes, Kanban, ocorrências, dashboard) — sem acesso a Parâmetros/Usuários |
+| `operador1` | `123456` | Operador de Campo | Só a Equipe Alfa (`#01`) e os trechos dela |
+| `operador2` | `123456` | Operador de Campo | Só a Equipe Beta (`#02`) e os trechos dela |
+
+Contas podem ser criadas/editadas de verdade em **Configurações → Gestão de Usuários** (só visível para Admin) — o que for cadastrado ali passa a valer como login imediatamente.
 
 ---
 
@@ -83,10 +87,14 @@ npx expo start
 ### Estrutura de pastas
 ```
 src/
-├── screens/         # Login, Equipes, Kanban, Ocorrencias, Detalhe, Configuracoes
-├── components/      # AppHeader, NotificacoesBell, OcorrenciaCard, StatusBadge, configuracoes/*
-├── context/         # EquipesContext, KanbanContext, NotificacoesContext,
-│                    # ConfiguracoesContext, OcorrenciasContext
+├── screens/         # Login, Dashboard, Equipes, Kanban, Ocorrencias, Detalhe, Configuracoes
+├── components/
+│   ├── dashboard/   # KpiCard, SeveridadeDonutChart, CriticidadeTrendChart, RankingTrechosList
+│   └── configuracoes/ # PerfilSection, UsuariosSection, ParametrosSistemaSection, etc.
+├── context/         # AuthContext, UsuariosContext, EquipesContext, KanbanContext,
+│                    # HistoricoContext, NotificacoesContext, ConfiguracoesContext, OcorrenciasContext
+├── utils/           # permissions.ts (autorização), dashboardMetrics.ts (cálculo puro dos KPIs)
+├── hooks/           # useDashboardMetrics.ts
 ├── services/        # ocorrenciasService.ts (persistência em AsyncStorage)
 ├── types/           # Tipagem centralizada
 ├── data/            # mockData.ts
@@ -95,7 +103,23 @@ src/
 ```
 
 ### Gerenciamento de estado
-Seis providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `ConfiguracoesProvider`, `NotificacoesProvider`, `EquipesProvider`, `KanbanProvider`, `OcorrenciasProvider`. Todos com estado persistido em `AsyncStorage`.
+Nove providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `UsuariosProvider`, `AuthProvider`, `ConfiguracoesProvider`, `NotificacoesProvider`, `EquipesProvider`, `KanbanProvider`, `HistoricoProvider`, `OcorrenciasProvider`. Todos com estado persistido em `AsyncStorage`.
+
+### Controle de acesso por papel (RBAC)
+
+O app tem 3 papéis de usuário, cada um com um escopo de dados diferente:
+
+| Papel | Pode ver | Pode gerenciar |
+|---|---|---|
+| **Admin** | Tudo | Tudo + Parâmetros do Sistema + Gestão de Usuários |
+| **Gestor** | Tudo | Equipes, Kanban, Ocorrências (sem Parâmetros/Usuários) |
+| **Operador de Campo** | Só a própria equipe e os trechos dela (via `equipeId`) | Só edição/registro de serviço nos trechos da própria equipe |
+
+A autorização é centralizada em `src/utils/permissions.ts` — funções puras (`getEquipesVisiveis`, `getKanbanItemsVisiveis`, `podeGerenciarEquipes`, `podeAcessarParametrosSistema`, etc.) que recebem o `Usuario` logado e devolvem o que ele pode ver/fazer. **Nenhuma tela decide isso sozinha com `if (papel === ...)` espalhado no JSX** — a tela só renderiza o que a função de permissão já filtrou.
+
+Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados hoje (é Context API + AsyncStorage), mas cada função em `permissions.ts` foi pensada para virar uma política de RLS real no Postgres/Supabase na Fase 2, sem redesenhar a lógica de autorização — só trocar "onde" ela roda. A documentação de como cada regra se traduziria em SQL/RLS (`docs/rls-supabase.md`) ainda está pendente.
+
+**Status da integração por tela:** `Equipes` e `Kanban` já filtram dados e escondem ações conforme o papel. Dashboard reduzido para Operador de Campo, e o gating de Parâmetros do Sistema/Gestão de Usuários (só Admin), estão em implementação.
 
 ---
 
@@ -103,18 +127,22 @@ Seis providers envolvem a aplicação em `App.tsx`: `ToastProvider`, `Configurac
 
 | Área | Status |
 |---|---|
-| **Login** | Validação contra dados mockados |
-| **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban |
-| **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm — faixas calibradas para que "Crítico" comece no limite geral de poda do Anexo 06/ARTESP), drag-and-drop (mouse e toque, via `PanResponder`), CRUD de itens, sincronizado com Equipes |
+| **Login** | Validação contra `UsuariosContext` (real, com CRUD — não mais um array estático) |
+| **Controle de acesso (RBAC)** | 3 papéis (Admin/Gestor/Operador de Campo); Equipes e Kanban já filtram dados e ações por papel; demais telas em implementação |
+| **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban, visível conforme papel |
+| **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm — faixas calibradas para que "Crítico" comece no limite geral de poda do Anexo 06/ARTESP), drag-and-drop (mouse e toque, via `PanResponder`), CRUD de itens, sincronizado com Equipes, visível conforme papel |
 | **Ocorrências** | Fluxo completo fechado: criar → salvar → listar → ver detalhe → avançar status (persistido via `OcorrenciasContext`) |
+| **Dashboard operacional** | KPIs (trechos críticos, equipes em campo, % SLA, tempo médio de resposta), gráfico de tendência e donut de severidade (`react-native-svg`), ranking de priorização por score, histórico com seed de demonstração + gravação real diária (`HistoricoContext`) |
 | **Notificações** | Sino global, badge, painel, histórico, geradas por CRUD |
-| **Configurações** | Perfil, Preferências, Notificações, Usuários, Parâmetros do Sistema (pesos de criticidade), Integrações, Dados do Sistema — com persistência e toasts |
+| **Configurações** | Perfil, Preferências, Notificações, Gestão de Usuários (CRUD real, ligado ao login), Parâmetros do Sistema (pesos de criticidade), Integrações, Dados do Sistema — com persistência e toasts |
 
 ## O que está incompleto / é a próxima prioridade
 
-- **Cálculo de score de criticidade:** os pesos (manutenção / clima / crescimento) já existem como sliders configuráveis em Configurações, mas **não há, ainda, um cálculo real** que os aplique a um trecho/equipe e produza uma priorização automática. Esta é a peça central da proposta de valor do projeto e ainda não existe no código.
+- **RBAC nas telas restantes:** Dashboard ainda não tem a versão reduzida para Operador de Campo; "Parâmetros do Sistema" e "Gestão de Usuários" ainda não estão restritas só a Admin; criação de Ocorrência ainda não está restrita a Admin/Gestor; itens de sidebar sem tela real (Trechos, Planejamento, Relatórios) ainda não são escondidos por papel.
+- **"Tempo médio de resposta" (KPI do Dashboard):** sempre mostra "—" hoje — o cálculo exige saber quando um trecho *entrou* na severidade atual, e o modelo de dados só guarda snapshots diários agregados, não um log de transição por trecho. Documentado em `utils/dashboardMetrics.ts`.
 - **Drag-and-drop do Kanban em touch:** já foi reescrito para usar `PanResponder` (compatível com mouse e toque) em vez das APIs de mouse do DOM — pendente apenas de confirmação de teste manual em dispositivo real via Expo Go.
 - **Dados mockados de Ocorrências** descrevem cenários de fábrica (vazamento de óleo, EPI, prensa hidráulica) em vez de cenários rodoviários/vegetação — desalinhados com o domínio do projeto.
+- **Achado de acessibilidade (paleta de severidade):** as cores de severidade do Kanban (reaproveitadas no Dashboard) falham no validador de contraste para daltonismo — Crítico (vermelho) e Leve (verde) são difíceis de distinguir sob deuteranopia. Mitigado com texto/número sempre visível junto da cor, mas a paleta em si não foi alterada (decisão de identidade visual do app, fora do escopo até agora).
 
 ---
 
@@ -143,9 +171,10 @@ O mesmo padrão (Context + service/`AsyncStorage`, mock só como seed inicial) �
 
 ```
 Login
-  └── Equipes ──┬── Kanban
-                └── Ocorrencias ── Detalhe
-       (Equipes, Kanban e Ocorrencias também acessam Configuracoes)
+  └── Dashboard ──┬── Equipes ──┬── Kanban
+                  ├── Kanban    └── Ocorrencias ── Detalhe
+                  └── Ocorrencias
+       (Dashboard, Equipes, Kanban e Ocorrencias também acessam Configuracoes)
 ```
 
 ---
@@ -163,3 +192,4 @@ Login
 | AsyncStorage | — | Persistência local |
 | Expo Vector Icons | — | Ícones (Ionicons, MaterialIcons) |
 | React Native Web | — | Suporte a navegador |
+| react-native-svg | 15.x | Gráficos do Dashboard (donut, tendência) — sem lib de charting externa |
