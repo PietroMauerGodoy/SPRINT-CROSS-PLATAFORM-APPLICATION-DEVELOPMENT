@@ -48,7 +48,7 @@ type Props = {
 export default function EquipesScreen({ navigation }: Props) {
 const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } = useEquipes();
   const { adicionarItem, removerPorEquipeId } = useKanban();
-  const { modoCompacto } = useConfiguracoes();
+  const { modoCompacto, notifPrefs } = useConfiguracoes();
   const { usuario, logout } = useAuth();
   const equipesVisiveis = usuario ? getEquipesVisiveis(usuario, equipes) : equipes;
   const podeGerenciar = usuario ? podeGerenciarEquipes(usuario) : false;
@@ -179,12 +179,14 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
         observacao: '', ultimoServico: null,
       });
     }
-    adicionarNotificacao({
-      cor: novoStatus === 'ativo' ? '#10B981' : '#94A3B8',
-      icone: novoStatus === 'ativo' ? 'checkmark-circle-outline' : 'pause-circle-outline',
-      titulo: 'Status alterado',
-      desc: `${eq.nome} (${eq.id}) mudou de ${STATUS_LABEL[eq.status]} para ${STATUS_LABEL[novoStatus]}.`,
-    });
+    if (notifPrefs.mudancaStatusEquipe) {
+      adicionarNotificacao({
+        cor: novoStatus === 'ativo' ? '#10B981' : '#94A3B8',
+        icone: novoStatus === 'ativo' ? 'checkmark-circle-outline' : 'pause-circle-outline',
+        titulo: 'Status alterado',
+        desc: `${eq.nome} (${eq.id}) mudou de ${STATUS_LABEL[eq.status]} para ${STATUS_LABEL[novoStatus]}.`,
+      });
+    }
   }
 
   function paginasBotoes() {
@@ -504,7 +506,7 @@ paginadas.map((eq, idx) => (
               <TouchableOpacity style={s.delBtnCancel} onPress={() => setShowLogout(false)}>
                 <Text style={s.delBtnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => { logout(); navigation.replace('Login'); }}>
+              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => { logout(); }}>
                 <MaterialIcons name="logout" size={14} color="#fff" />
                 <Text style={s.delBtnConfirmTxt}>Sair</Text>
               </TouchableOpacity>

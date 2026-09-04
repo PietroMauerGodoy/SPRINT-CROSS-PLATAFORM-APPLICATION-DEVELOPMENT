@@ -171,7 +171,6 @@ export default function DashboardScreen({ navigation }: Props) {
               <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => {
                 setShowLogout(false);
                 logout();
-                navigation.replace('Login');
               }}>
                 <Ionicons name="log-out-outline" size={14} color="#fff" />
                 <Text style={s.delBtnConfirmTxt}>Sair</Text>

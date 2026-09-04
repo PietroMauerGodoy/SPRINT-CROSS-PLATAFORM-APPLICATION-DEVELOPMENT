@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { gerarId } from '../utils/id';
 
 export type Notificacao = {
   id:       number;
@@ -108,7 +109,7 @@ export function NotificacoesProvider({ children }: { children: ReactNode }) {
   }, [naoLidas, isHydrated]);
 
   function adicionarNotificacao(n: Omit<Notificacao, 'id' | 'criadaEm'>) {
-    const nova: Notificacao = { ...n, id: Date.now(), criadaEm: new Date() };
+    const nova: Notificacao = { ...n, id: gerarId(), criadaEm: new Date() };
     setNotificacoes((prev) => [nova, ...prev]);
     setNaoLidas((prev) => prev + 1);
   }

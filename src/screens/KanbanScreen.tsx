@@ -730,7 +730,7 @@ export default function KanbanScreen({ navigation, route }: Props) {
                 <Text style={s.smallBtnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.smallBtnConfirm, { backgroundColor: colors.primary }]}
-                onPress={() => { logout(); navigation.replace('Login'); }}>
+                onPress={() => { logout(); }}>
                 <MaterialIcons name="logout" size={14} color="#fff" />
                 <Text style={s.smallBtnConfirmTxt}>Sair</Text>
               </TouchableOpacity>

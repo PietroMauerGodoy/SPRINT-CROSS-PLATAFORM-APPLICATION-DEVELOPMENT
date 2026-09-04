@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [hoverSide, setHoverSide]         = useState<string | null>(null);
   const [showLogout, setShowLogout]       = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   return (
     <View style={s.root}>
@@ -49,7 +50,11 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
       <AppHeader
         title="Configurações"
         onMenuPress={() => setSidebarAberta((v) => !v)}
-        onSettingsPress={() => navigation.navigate('Configuracoes')}
+        // Já estamos nesta tela — navigation.navigate('Configuracoes') seria um
+        // no-op silencioso (nada acontece, parece um botão quebrado). Em vez
+        // disso, rola pro topo: é o feedback esperado ao clicar no ícone da
+        // própria tela em que já se está.
+        onSettingsPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
         onLogoutPress={() => setShowLogout(true)}
       />
 
@@ -93,6 +98,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
         {/* Conteúdo */}
         <View style={s.content}>
           <ScrollView
+            ref={scrollRef}
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -132,7 +138,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
               <TouchableOpacity style={s.delBtnCancel} onPress={() => setShowLogout(false)}>
                 <Text style={s.delBtnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => { logout(); navigation.replace('Login'); }}>
+              <TouchableOpacity style={[s.delBtnConfirm, { backgroundColor: colors.primary }]} onPress={() => { logout(); }}>
                 <MaterialIcons name="logout" size={14} color="#fff" />
                 <Text style={s.delBtnConfirmTxt}>Sair</Text>
               </TouchableOpacity>

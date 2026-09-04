@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockOcorrencias } from '../data/mockData';
 import { Ocorrencia } from '../types';
+import { gerarId } from '../utils/id';
 
 const STORAGE_KEY = '@motiva:ocorrencias';
 
@@ -50,7 +51,7 @@ export async function listarOcorrencias(): Promise<Ocorrencia[]> {
 
 export async function adicionarOcorrencia(dados: Omit<Ocorrencia, 'id'>): Promise<number> {
   const listaAtual = await listarOcorrencias();
-  const id = Date.now();
+  const id = gerarId();
   const novaOcorrencia: Ocorrencia = { ...dados, id };
 
   await salvarOcorrencias([novaOcorrencia, ...listaAtual]);

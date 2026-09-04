@@ -13,7 +13,7 @@ const perfilLogo = require('../../../assets/images/perfil_logo.png');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function PerfilSection() {
-  const { avatarPerfil, setAvatarPerfil, registrarAtividade } = useConfiguracoes();
+  const { registrarAtividade } = useConfiguracoes();
   const { usuario, atualizarUsuarioLogado } = useAuth();
   const { editarUsuario } = useUsuarios();
   const { showToast } = useToast();
@@ -34,8 +34,10 @@ export default function PerfilSection() {
   const [erroNovaSenha, setErroNovaSenha] = useState<string | null>(null);
   const [erroConfirmar, setErroConfirmar] = useState<string | null>(null);
 
-  // Upload avatar
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(avatarPerfil);
+  // Upload avatar — parte do próprio usuário (Usuario.avatar), não uma
+  // preferência global: cada conta tem sua própria foto, não uma só pro
+  // navegador inteiro.
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(usuario?.avatar ?? null);
 
   function validarNome(v: string): string | null {
     if (v.trim() === '') return 'O nome não pode ficar vazio.';
@@ -67,13 +69,16 @@ export default function PerfilSection() {
 
   // Upload de imagem do avatar (preview local via FileReader)
   function handleAvatarUpload(e: any) {
+    if (!usuario) return;
     const file = e?.target?.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const url = String(reader.result);
       setAvatarPreview(url);
-      setAvatarPerfil(url);
+      const { id, ...resto } = usuario;
+      editarUsuario(usuario.id, { ...resto, avatar: url });
+      atualizarUsuarioLogado({ avatar: url });
       registrarAtividade('Atualizou a foto do perfil');
       showToast('Avatar atualizado!');
     };
@@ -121,17 +126,18 @@ export default function PerfilSection() {
               <TouchableOpacity
                 style={styles.avatarEdit}
                 activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 onPress={() => {
                   const input = document.getElementById('avatar-upload') as HTMLInputElement | null;
                   input?.click();
                 }}
               >
-                <Ionicons name="camera" size={11} color="#fff" />
+                <Ionicons name="camera" size={15} color="#fff" />
               </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity style={styles.avatarEdit} activeOpacity={0.8}>
-              <Ionicons name="camera" size={11} color="#fff" />
+            <TouchableOpacity style={styles.avatarEdit} activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="camera" size={15} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
@@ -261,17 +267,18 @@ const styles = StyleSheet.create({
   },
   avatarEdit: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#fff',
-  },
+    cursor: 'pointer',
+  } as any,
   avatarEditLabel: {
     width: 22,
     height: 22,

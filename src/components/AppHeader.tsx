@@ -2,6 +2,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '../theme';
 import NotificacoesBell from './NotificacoesBell';
+import { useAuth } from '../context/AuthContext';
 
 const logoNegativo = require('../../assets/images/Motiva_Logo-Negativo.png');
 const perfilLogo = require('../../assets/images/perfil_logo.png');
@@ -37,6 +38,9 @@ export default function AppHeader({
   onToggleTheme,
   showNotificationsButton = true,
 }: Props) {
+  const { usuario } = useAuth();
+  const avatarPerfil = usuario?.avatar ?? null;
+
   return (
     <View style={styles.header}>
       <View style={styles.left}>
@@ -100,7 +104,7 @@ export default function AppHeader({
         </View>
 
         <TouchableOpacity style={styles.avatarBtn}>
-          <Image source={perfilLogo} style={styles.avatar} resizeMode="cover" />
+          <Image source={avatarPerfil ? { uri: avatarPerfil } : perfilLogo} style={styles.avatar} resizeMode="cover" />
         </TouchableOpacity>
       </View>
     </View>

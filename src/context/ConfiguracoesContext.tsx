@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { gerarId } from '../utils/id';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -49,9 +50,6 @@ function formatarDataHora(d: Date): string {
 }
 
 type ConfiguracoesContextType = {
- avatarPerfil: string | null;
- setAvatarPerfil: (v: string | null) => void;
-
  temaEscuro: boolean;
  setTemaEscuro: (v: boolean) => void;
  idioma: string;
@@ -84,7 +82,6 @@ const ConfiguracoesContext = createContext<ConfiguracoesContextType | null>(null
 
 export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
  const { usuario } = useAuth();
- const [avatarPerfil, setAvatarPerfil] = useState<string | null>(null);
 
  const [temaEscuro, setTemaEscuro] = useState(true);
  const [idioma, setIdioma] = useState('pt-BR');
@@ -112,7 +109,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
        }
 
        const parsed = JSON.parse(raw) as Partial<{
-         avatarPerfil: string | null;
          temaEscuro: boolean;
          idioma: string;
          modoCompacto: boolean;
@@ -128,7 +124,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
 
        if (ignore) return;
 
-       if (parsed.avatarPerfil !== undefined) setAvatarPerfil(parsed.avatarPerfil);
        if (parsed.temaEscuro !== undefined) setTemaEscuro(parsed.temaEscuro);
        if (parsed.idioma !== undefined) setIdioma(parsed.idioma);
        if (parsed.modoCompacto !== undefined) setModoCompacto(parsed.modoCompacto);
@@ -157,7 +152,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
    if (!isHydrated) return;
 
    const payload = {
-     avatarPerfil,
      temaEscuro,
      idioma,
      modoCompacto,
@@ -172,7 +166,7 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
    };
 
    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload)).catch(() => undefined);
- }, [isHydrated, avatarPerfil, temaEscuro, idioma, modoCompacto, notifPrefs, pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao, limiteCriticidade, apiClimaConectada, logAtividades]);
+ }, [isHydrated, temaEscuro, idioma, modoCompacto, notifPrefs, pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao, limiteCriticidade, apiClimaConectada, logAtividades]);
 
  function setNotifPref(k: keyof NotificacaoPreferencia, v: boolean) {
    setNotifPrefs((prev) => ({ ...prev, [k]: v }));
@@ -180,7 +174,7 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
 
  function registrarAtividade(acao: string) {
    const nova: AtividadeLog = {
-     id: Date.now(),
+     id: gerarId(),
      usuario: usuario?.nome ?? 'Sistema',
      acao,
      dataHora: formatarDataHora(new Date()),
@@ -191,7 +185,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
  return (
    <ConfiguracoesContext.Provider
      value={{
-       avatarPerfil, setAvatarPerfil,
        temaEscuro, setTemaEscuro, idioma, setIdioma, modoCompacto, setModoCompacto,
        notifPrefs, setNotifPref,
        pesoManutencao, pesoClima, pesoCrescimento,
