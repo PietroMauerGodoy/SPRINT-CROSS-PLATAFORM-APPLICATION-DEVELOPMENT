@@ -138,14 +138,14 @@ Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados 
 
 | Área | Status |
 |---|---|
-| **Login** | Validação contra `UsuariosContext` (real, com CRUD — não mais um array estático) |
+| **Login** | Validação contra `UsuariosContext` (real, com CRUD — não mais um array estático); `AppNavigator` só monta a pilha autenticada quando há sessão — sem guard solto por tela |
 | **Controle de acesso (RBAC)** | 3 papéis (Admin/Gestor/Operador de Campo); Equipes, Kanban, Dashboard, Ocorrências, Configurações e a sidebar das 5 telas filtram dados/ações/menu por papel; documentação de RLS futura em [`docs/rls-supabase.md`](docs/rls-supabase.md) |
 | **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban, visível conforme papel |
 | **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm — faixas calibradas para que "Crítico" comece no limite geral de poda do Anexo 06/ARTESP), drag-and-drop (mouse e toque, via `PanResponder`), CRUD de itens, sincronizado com Equipes, visível conforme papel |
 | **Ocorrências** | Fluxo completo fechado: criar → salvar → listar → ver detalhe → avançar status (persistido via `OcorrenciasContext`) |
 | **Dashboard operacional** | KPIs (trechos críticos, equipes em campo, % SLA, tempo médio de resposta), gráfico de tendência e donut de severidade (`react-native-svg`), ranking de priorização por score, histórico com seed de demonstração + gravação real diária (`HistoricoContext`) |
 | **Notificações** | Sino global, badge, painel, histórico, geradas por CRUD |
-| **Configurações** | Perfil, Preferências, Notificações, Gestão de Usuários (CRUD real, ligado ao login), Parâmetros do Sistema (pesos de criticidade), Integrações, Dados do Sistema — com persistência e toasts |
+| **Configurações** | Perfil (nome/e-mail/senha/foto — foto por usuário via `Usuario.avatar`), Preferências, Notificações (2 toggles reais), Gestão de Usuários (CRUD real, ligado ao login — testado criando conta de cada papel e validando o RBAC), Parâmetros do Sistema (pesos de criticidade), Integrações, Dados do Sistema — com persistência e toasts |
 
 ## O que está incompleto / é a próxima prioridade
 
@@ -153,6 +153,11 @@ Esse desenho é intencionalmente "RLS-ready": o projeto não tem banco de dados 
 - **Drag-and-drop do Kanban em touch:** já foi reescrito para usar `PanResponder` (compatível com mouse e toque) em vez das APIs de mouse do DOM — pendente apenas de confirmação de teste manual em dispositivo real via Expo Go.
 - **Dados mockados de Ocorrências** descrevem cenários de fábrica (vazamento de óleo, EPI, prensa hidráulica) em vez de cenários rodoviários/vegetação — desalinhados com o domínio do projeto.
 - **Achado de acessibilidade (paleta de severidade):** as cores de severidade do Kanban (reaproveitadas no Dashboard) falham no validador de contraste para daltonismo — Crítico (vermelho) e Leve (verde) são difíceis de distinguir sob deuteranopia. Mitigado com texto/número sempre visível junto da cor, mas a paleta em si não foi alterada (decisão de identidade visual do app, fora do escopo até agora).
+- **Seletor de idioma decorativo:** `Configurações → Preferências → Idioma` salva o valor escolhido, mas não existe nenhuma lib de i18n no projeto — nada na tela é traduzido de fato.
+- **"Modo compacto" só afeta a tabela de Equipes** — Kanban, Ocorrências e outras listas ainda não reagem a essa preferência.
+- **`ocorrenciasService` não tem exclusão** — CRUD hoje é só criar/listar/atualizar.
+
+De 5 toggles que existiam em `Configurações → Notificações`, só 2 tinham função real (`Nova ocorrência crítica` e, após correção nesta sessão, `Mudança de status de equipe`); os outros 3 (`Prazo de trecho vencendo`, `Relatório semanal disponível`, `Receber também por e-mail`) foram escondidos por não terem nenhuma feature real por trás (não existe sistema de prazo de trecho, geração de relatório semanal, nem envio de e-mail no app hoje).
 
 ---
 
@@ -172,8 +177,12 @@ O mesmo padrão (Context + service/`AsyncStorage`, mock só como seed inicial) �
 ## Bugs conhecidos
 
 1. ~~Botão de configurações morto no Kanban~~ — **corrigido.** `KanbanScreen.tsx` agora usa o mesmo `AppHeader` das outras telas, com a engrenagem navegando para Configurações.
-2. **Dados mockados de Ocorrências fora do domínio** — cenários de fábrica em vez de rodovia/vegetação.
-3. *(A validar)* possível bug de validação assíncrona em `ParametrosSistemaSection.salvar()` e duplicação de wrapper no ícone de câmera de `PerfilSection` — reportados pela equipe, ainda não reproduzidos na leitura estática do código atual.
+2. ~~Sem guard de autenticação no navigator~~ — **corrigido.** `AppNavigator.tsx` só registra as rotas autenticadas quando existe um `usuario` logado; sem sessão, só a rota `Login` existe na pilha (nem por navegação programática dá pra alcançar as outras). Antes, todas as telas ficavam sempre registradas e cada tela fazia `navigation.replace('Login')` manualmente no logout.
+3. ~~Colisão de ID em criações rápidas~~ — **corrigido.** `ocorrenciasService`, `ConfiguracoesContext` (log de atividades) e `NotificacoesContext` geravam IDs só com `Date.now()`, que colide sob chamadas síncronas rápidas. Agora usam `gerarId()` (`src/utils/id.ts`), um contador monotônico — testado com 500 mil chamadas em loop apertado, zero colisões.
+4. ~~Foto de perfil compartilhada entre contas~~ — **corrigido.** A foto ficava num estado global (`ConfiguracoesContext`), então trocar a foto de um usuário trocava a de todo mundo logado naquele navegador. Movida para `Usuario.avatar`, por conta.
+5. ~~Toggle verde em vez de roxo~~ — **corrigido.** O `Switch` nativo do React Native não respeita `trackColor` de forma confiável no `react-native-web` (cai no estilo padrão do navegador). `Toggle.tsx` foi reescrito como componente próprio.
+6. **Dados mockados de Ocorrências fora do domínio** — cenários de fábrica em vez de rodovia/vegetação; o tipo `Ocorrencia` também usa vocabulário genérico (`local`/`categoria`/`risco`) em vez de `trecho`/`km`/`severidade` como `Equipe`/`KanbanItem`.
+7. *(Validado, não reproduzido)* possível bug de validação assíncrona em `ParametrosSistemaSection.salvar()` — testado ao vivo (campo vazio → bloqueia salvar com toast de erro; corrigido → salva com sucesso). A função é inteiramente síncrona, sem `async`/`await`. Não reproduzido.
 
 ---
 
