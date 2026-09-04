@@ -4,13 +4,31 @@ import { Equipe, KanbanItem, SeveridadeSnapshot, SeveridadeVegetacao } from '../
 
 // ─── Constantes de negócio (documentadas, nada de "número mágico" solto) ──────
 
-/** Peso de cada severidade, usado no score de priorização. */
-export const PESO_SEVERIDADE: Record<SeveridadeVegetacao, number> = {
+/**
+ * Fator de "crescimento" por severidade, 0–100 — usado no score de priorização.
+ * A severidade já É definida por faixa de altura (ver README: Sem Ocorrência
+ * 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm), então ela funciona como
+ * proxy direto da taxa de crescimento/estado atual do trecho.
+ */
+export const FATOR_CRESCIMENTO_SEVERIDADE: Record<SeveridadeVegetacao, number> = {
   sem_ocorrencia: 0,
-  leve: 1,
-  grave: 2,
-  critico: 3,
+  leve: 33,
+  grave: 66,
+  critico: 100,
 };
+
+/**
+ * Fator de "clima" neutro, 0–100 — usado no score de priorização enquanto não
+ * existir uma fonte real de dado climático por trecho. Hoje "Integrações → API
+ * de Clima" é só um toggle "Conectado" sem integração de verdade por trás, e
+ * `KanbanItem` não guarda nenhum dado climático por trecho. Em vez de fingir
+ * um valor "real" (que mudaria o ranking sem nenhuma base), usamos um valor
+ * fixo igual pra todos os trechos: o peso de clima configurado em Parâmetros
+ * do Sistema participa da conta, mas não diferencia nenhum trecho do outro —
+ * na prática, ele só dilui a influência dos outros dois pesos (que são reais).
+ * Trocar por um valor de verdade exige integrar uma API de clima de fato.
+ */
+export const FATOR_CLIMA_NEUTRO = 50;
 
 /**
  * Prazo-alvo (SLA), em dias, por severidade — inspirado no Anexo 06/ARTESP.
@@ -62,9 +80,51 @@ export function diasDesdeUltimoServico(item: KanbanItem, referencia: Date = new 
 
 // ─── Score de priorização ──────────────────────────────────────────────────────
 
-/** Score = (peso da severidade × 10) + dias desde o último serviço. */
-export function scorePriorizacao(item: KanbanItem, referencia: Date = new Date()): number {
-  return PESO_SEVERIDADE[item.severidade] * 10 + diasDesdeUltimoServico(item, referencia);
+/** Pesos configuráveis em Configurações → Parâmetros do Sistema (0–100 cada, somam 100). */
+export type PesosCriticidade = {
+  pesoManutencao: number;
+  pesoClima: number;
+  pesoCrescimento: number;
+  /** "Frequência padrão de reavaliação", em dias — também configurável ali. */
+  frequenciaReavaliacaoDias: number;
+};
+
+/**
+ * Fator de "manutenção", 0–100: quão atrasado o trecho está em relação à
+ * frequência de reavaliação configurada. 0 = acabou de ser atendido; 100 =
+ * atraso igual ou maior que o dobro da frequência configurada (ou trecho sem
+ * nenhum serviço registrado, que sempre bate no teto).
+ */
+export function fatorManutencao(
+  item: KanbanItem,
+  frequenciaReavaliacaoDias: number,
+  referencia: Date = new Date(),
+): number {
+  const dias = diasDesdeUltimoServico(item, referencia);
+  const janela = Math.max(1, frequenciaReavaliacaoDias) * 2;
+  return Math.max(0, Math.min(100, (dias / janela) * 100));
+}
+
+/**
+ * Score de priorização (0–100), média ponderada pelos 3 pesos configuráveis:
+ * - Manutenção → `fatorManutencao` (dado real: dias desde o último serviço).
+ * - Crescimento → `FATOR_CRESCIMENTO_SEVERIDADE` (dado real: severidade/altura atual).
+ * - Clima → `FATOR_CLIMA_NEUTRO` (placeholder documentado — sem fonte de dado real hoje).
+ */
+export function scorePriorizacao(
+  item: KanbanItem,
+  pesos: PesosCriticidade,
+  referencia: Date = new Date(),
+): number {
+  const fManutencao = fatorManutencao(item, pesos.frequenciaReavaliacaoDias, referencia);
+  const fCrescimento = FATOR_CRESCIMENTO_SEVERIDADE[item.severidade];
+  const fClima = FATOR_CLIMA_NEUTRO;
+
+  const somaPesos = pesos.pesoManutencao + pesos.pesoClima + pesos.pesoCrescimento || 1;
+  const somaPonderada =
+    pesos.pesoManutencao * fManutencao + pesos.pesoClima * fClima + pesos.pesoCrescimento * fCrescimento;
+
+  return Math.round(somaPonderada / somaPesos);
 }
 
 // ─── KPIs ──────────────────────────────────────────────────────────────────────
@@ -129,11 +189,15 @@ export type TrechoRanking = {
   diasSemServico: number;
 };
 
-export function rankearTrechos(itens: KanbanItem[], referencia: Date = new Date()): TrechoRanking[] {
+export function rankearTrechos(
+  itens: KanbanItem[],
+  pesos: PesosCriticidade,
+  referencia: Date = new Date(),
+): TrechoRanking[] {
   return itens
     .map((item) => ({
       item,
-      score: scorePriorizacao(item, referencia),
+      score: scorePriorizacao(item, pesos, referencia),
       diasSemServico: diasDesdeUltimoServico(item, referencia),
     }))
     .sort((a, b) => b.score - a.score);
@@ -155,8 +219,13 @@ function montarMotivo(item: KanbanItem, diasSemServico: number): string {
   return `${label} há ${diasSemServico} dia${diasSemServico === 1 ? '' : 's'} sem serviço — priorizar equipe.`;
 }
 
-export function gerarRecomendacoes(itens: KanbanItem[], limite = 5, referencia: Date = new Date()): Recomendacao[] {
-  return rankearTrechos(itens, referencia)
+export function gerarRecomendacoes(
+  itens: KanbanItem[],
+  pesos: PesosCriticidade,
+  limite = 5,
+  referencia: Date = new Date(),
+): Recomendacao[] {
+  return rankearTrechos(itens, pesos, referencia)
     .slice(0, limite)
     .map(({ item, score, diasSemServico }) => ({ item, score, motivo: montarMotivo(item, diasSemServico) }));
 }

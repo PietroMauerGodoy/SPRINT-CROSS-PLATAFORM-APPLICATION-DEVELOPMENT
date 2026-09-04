@@ -127,34 +127,37 @@ export default function ParametrosSistemaSection() {
       </View>
 
       {/* Sliders de peso */}
-      <WeightSlider
-        label="Peso: Tempo desde última manutenção"
-        valor={pesoManutencao}
-        cor="#5E22F3"
-        onChange={(v) => ajustarPeso('manutencao', v)}
-      />
-      <WeightSlider
-        label="Peso: Condições climáticas"
-        valor={pesoClima}
-        cor="#3B82F6"
-        onChange={(v) => ajustarPeso('clima', v)}
-      />
-      <WeightSlider
-        label="Peso: Taxa de crescimento estimado"
-        valor={pesoCrescimento}
-        cor="#F59E0B"
-        onChange={(v) => ajustarPeso('crescimento', v)}
-      />
+      <View style={styles.slidersBox}>
+        <WeightSlider
+          label="Peso: Tempo desde última manutenção"
+          valor={pesoManutencao}
+          cor="#5E22F3"
+          onChange={(v) => ajustarPeso('manutencao', v)}
+        />
+        <WeightSlider
+          label="Peso: Condições climáticas"
+          valor={pesoClima}
+          cor="#3B82F6"
+          onChange={(v) => ajustarPeso('clima', v)}
+        />
+        <WeightSlider
+          label="Peso: Taxa de crescimento estimado"
+          valor={pesoCrescimento}
+          cor="#F59E0B"
+          onChange={(v) => ajustarPeso('crescimento', v)}
+        />
+      </View>
 
       <View style={styles.divider} />
 
       {/* Inputs numéricos */}
       <View style={styles.fieldRow}>
         <View style={styles.field}>
-          <Text style={styles.label}>Frequência padrão de reavaliação (dias)</Text>
-          <View style={styles.inputShell}>
+          <Text style={styles.label}>Frequência de reavaliação</Text>
+          <View style={[styles.inputShell, erroFreq && styles.inputShellErro]}>
+            <Ionicons name="calendar-outline" size={15} color={colors.gray400} style={styles.inputIcone} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { outlineStyle: 'none' } as any]}
               value={frequenciaReavaliacao}
               onChangeText={handleFreq}
               keyboardType="numeric"
@@ -165,14 +168,13 @@ export default function ParametrosSistemaSection() {
           </View>
           {erroFreq ? <Text style={styles.erro}>{erroFreq}</Text> : null}
         </View>
-      </View>
 
-      <View style={styles.fieldRow}>
         <View style={styles.field}>
-          <Text style={styles.label}>Limite de criticidade para alerta automático</Text>
-          <View style={styles.inputShell}>
+          <Text style={styles.label}>Limite p/ alerta automático</Text>
+          <View style={[styles.inputShell, erroLimite && styles.inputShellErro]}>
+            <Ionicons name="alert-circle-outline" size={15} color={colors.gray400} style={styles.inputIcone} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { outlineStyle: 'none' } as any]}
               value={limiteCriticidade}
               onChangeText={handleLimite}
               keyboardType="numeric"
@@ -203,9 +205,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   somaBox: {
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -219,13 +221,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     marginVertical: 4,
   },
+  slidersBox: {
+    backgroundColor: '#FAFBFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 14,
+    gap: 16,
+  },
   fieldRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 12,
   },
   field: {
     flex: 1,
-    minWidth: 200,
+    minWidth: 180,
     gap: 5,
   },
   label: {
@@ -240,13 +251,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
+  inputShellErro: {
+    borderColor: '#FCA5A5',
+  },
+  inputIcone: {
+    marginLeft: 12,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
     fontSize: 14,
     color: colors.secondary,
     outlineStyle: 'none',
@@ -259,7 +277,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderLeftColor: '#E2E8F0',
     paddingLeft: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     backgroundColor: '#F8FAFC',
   },
   erro: {
@@ -273,8 +291,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.primary,
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 13,
     marginTop: 4,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   btnSalvarTxt: {
     fontSize: 13,

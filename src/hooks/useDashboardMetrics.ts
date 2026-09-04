@@ -4,6 +4,7 @@
 import { useMemo } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
+import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import { SeveridadeSnapshot, Usuario } from '../types';
 import { getKanbanItemsVisiveis, getEquipesVisiveis, podeVerDashboardCompleto } from '../utils/permissions';
 import {
@@ -21,6 +22,7 @@ import {
   TrechoRanking,
   Recomendacao,
   PontoTendencia,
+  PesosCriticidade,
 } from '../utils/dashboardMetrics';
 
 export type RodoviaFiltro = 'Todas' | 'BR-116' | 'BR-381' | 'SP-280';
@@ -65,6 +67,17 @@ export function useDashboardMetrics({
 }: UseDashboardMetricsParams): DashboardMetrics {
   const { itens } = useKanban();
   const { equipes } = useEquipes();
+  const { pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao } = useConfiguracoes();
+
+  const pesos: PesosCriticidade = useMemo(() => {
+    const freq = Number(frequenciaReavaliacao);
+    return {
+      pesoManutencao,
+      pesoClima,
+      pesoCrescimento,
+      frequenciaReavaliacaoDias: Number.isFinite(freq) && freq > 0 ? freq : 30,
+    };
+  }, [pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao]);
 
   return useMemo(() => {
     if (!usuario) {
@@ -99,11 +112,11 @@ export function useDashboardMetrics({
       percentualSLA: percentualCumprimentoSLA(itensFiltrados),
       tempoMedioResposta: tempoMedioRespostaDias(itensFiltrados),
       distribuicao: distribuicaoPorSeveridade(itensFiltrados),
-      ranking: rankearTrechos(itensFiltrados),
-      recomendacoes: gerarRecomendacoes(itensFiltrados, limiteRecomendacoes),
+      ranking: rankearTrechos(itensFiltrados, pesos),
+      recomendacoes: gerarRecomendacoes(itensFiltrados, pesos, limiteRecomendacoes),
       tendencia: temHistoricoConfiavel ? serieTendenciaGraveCritico(snapshots, periodoDias) : [],
       deltaTrechosCriticos: temHistoricoConfiavel ? deltaTrechosCriticos(snapshots, periodoDias) : null,
       temHistoricoConfiavel,
     };
-  }, [usuario, itens, equipes, rodovia, periodoDias, snapshots, limiteRecomendacoes]);
+  }, [usuario, itens, equipes, rodovia, periodoDias, snapshots, limiteRecomendacoes, pesos]);
 }
