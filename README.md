@@ -97,9 +97,11 @@ src/
 │   ├── configuracoes/ # PerfilSection, UsuariosSection, ParametrosSistemaSection, WeightSlider, Toggle, etc.
 │   └── trechos/     # TrechoMapa.web.tsx (Leaflet) / TrechoMapa.tsx (fallback nativo)
 ├── context/         # AuthContext, UsuariosContext, EquipesContext, KanbanContext,
-│                    # HistoricoContext, NotificacoesContext, ConfiguracoesContext, OcorrenciasContext
+│                    # HistoricoContext, NotificacoesContext, ConfiguracoesContext, OcorrenciasContext,
+│                    # SincronizarEquipesKanban (reconciliação Equipes ↔ Kanban)
 ├── utils/           # permissions.ts (autorização), dashboardMetrics.ts (score de criticidade),
-│                    # geo.ts (coordenadas dos trechos), id.ts (geração de ID sem colisão)
+│                    # geo.ts (coordenadas + migração de rodovia legada), id.ts (geração de ID sem colisão),
+│                    # equipeKanbanSync.ts (invariante Equipes ↔ Kanban)
 ├── hooks/           # useDashboardMetrics.ts
 ├── services/        # ocorrenciasService.ts (persistência), geocodingService.ts (Nominatim),
 │                    # climaService.ts (Open-Meteo)
@@ -203,7 +205,7 @@ Os 10 trechos mockados (`K01`–`K10`) usam 3 rodovias **confirmadas como admini
 |---|---|
 | **Login** | Validação contra `UsuariosContext` (real, com CRUD — não mais um array estático); `AppNavigator` só monta a pilha autenticada quando há sessão — sem guard solto por tela |
 | **Controle de acesso (RBAC)** | 3 papéis (Admin/Gestor/Operador de Campo); Equipes, Kanban, Dashboard, Ocorrências, Trechos, Configurações e a sidebar de todas as telas filtram dados/ações/menu por papel; documentação de RLS futura em [`docs/rls-supabase.md`](docs/rls-supabase.md) |
-| **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban, visível conforme papel |
+| **Equipes** | CRUD completo, filtros, paginação (7/página), sincronizado com Kanban (com reconciliação automática — `SincronizarEquipesKanban` — pra nenhuma equipe ficar "órfã"), visível conforme papel |
 | **Kanban de vegetação** | 4 colunas por severidade (Sem Ocorrência 0–9cm, Leve 10–19cm, Grave 20–29cm, Crítico ≥30cm — faixas calibradas para que "Crítico" comece no limite geral de poda do Anexo 06/ARTESP), drag-and-drop (mouse e toque, via `PanResponder`), CRUD de itens, sincronizado com Equipes, visível conforme papel |
 | **Ocorrências** | CRUD completo (criar, listar, ver detalhe, **editar**, **excluir**), paginação (7/página), vínculo real com trecho (`kanbanItemId`), tudo persistido via `OcorrenciasContext` |
 | **Trechos (novo)** | Aba com mapa real (Leaflet/OpenStreetMap) mostrando todos os trechos coloridos por severidade, busca/filtro por rodovia, painel lateral com clima em tempo real (Open-Meteo) do trecho selecionado, coordenadas geocodificadas de verdade (Nominatim) |
@@ -234,7 +236,9 @@ A persistência de Ocorrências é ponta a ponta e sobrevive a fechar/reabrir o 
 3. **Ver detalhe** — ao tocar em um card, `OcorrenciasScreen` navega para `DetalheScreen` passando a ocorrência; a tela também busca a versão mais atual via `buscarPorId()` do Context, garantindo que o detalhe reflita qualquer atualização já persistida. A partir daqui dá pra **editar** (reabre o mesmo formulário de criação, pré-preenchido) ou **excluir** (com modal de confirmação, restrito a quem tem permissão via `podeCriarOuExcluirOcorrencia`).
 4. **Reabrir o app** — no boot, `OcorrenciasProvider` roda `carregarOcorrencias()` em um `useEffect`, que lê do `AsyncStorage` e usa isso (não o mock) como fonte de dados sempre que já existir algo salvo. O mock (`mockOcorrencias`) só é usado como seed na primeira execução, quando ainda não há nada gravado.
 
-O mesmo padrão (Context + service/`AsyncStorage`, mock só como seed inicial) é usado também em `EquipesContext` e `KanbanContext`. O `KanbanContext` tem uma camada extra de proteção: uma função de migração (`comCoordenadas()`) roda no carregamento e corrige/completa `lat`/`lon` ausentes ou inválidos em dados salvos antes da introdução das coordenadas geográficas — sem isso, dados antigos no `AsyncStorage` quebrariam o mapa da aba Trechos (ver Bugs conhecidos).
+O mesmo padrão (Context + service/`AsyncStorage`, mock só como seed inicial) é usado também em `EquipesContext` e `KanbanContext`. O `KanbanContext` tem uma camada extra de proteção: uma função de migração (`comMetadadosCompletos()`) roda no carregamento e corrige/completa `lat`/`lon`, `entrouNaSeveridadeEm` e rodovias legadas (`migrarRodoviaLegada()`, ver `utils/geo.ts`) ausentes ou inválidos em dados salvos antes dessas mudanças de schema — sem isso, dados antigos no `AsyncStorage` quebrariam o mapa da aba Trechos ou ficariam presos numa rodovia incorreta (ver Bugs conhecidos). `EquipesContext` aplica a mesma migração de rodovia legada.
+
+Além disso, `SincronizarEquipesKanban` (`src/context/SincronizarEquipesKanban.tsx`, montado no `App.tsx` dentro dos providers de Equipes e Kanban) garante um invariante entre os dois: toda equipe com status diferente de "Inativo" tem pelo menos um card no Kanban. Ele roda uma vez, só depois que `EquipesContext` e `KanbanContext` terminam de hidratar, e cria automaticamente o card que faltar — cobre qualquer forma de os dois ficarem fora de sincronia (dado de uma versão anterior do app, edição direta do armazenamento etc.), não só o fluxo normal de criação pela tela.
 
 ---
 
