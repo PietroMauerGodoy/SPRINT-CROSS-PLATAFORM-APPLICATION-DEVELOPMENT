@@ -10,6 +10,7 @@ import { KanbanProvider } from './src/context/KanbanContext';
 import { HistoricoProvider } from './src/context/HistoricoContext';
 import { ConfiguracoesProvider } from './src/context/ConfiguracoesContext';
 import { OcorrenciasProvider } from './src/context/OcorrenciasContext';
+import { SincronizarEquipesKanban } from './src/context/SincronizarEquipesKanban';
 import { ToastProvider } from './src/components/toast/ToastContext';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
               <NotificacoesProvider>
                 <EquipesProvider>
                   <KanbanProvider>
+                    <SincronizarEquipesKanban />
                     <HistoricoProvider>
                       <OcorrenciasProvider>
                         <AppNavigator />

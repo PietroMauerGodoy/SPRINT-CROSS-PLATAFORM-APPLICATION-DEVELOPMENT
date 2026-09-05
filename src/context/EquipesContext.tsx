@@ -2,8 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Equipe, StatusEquipe } from '../types';
 import { mockEquipes } from '../data/mockData';
+import { migrarRodoviaLegada } from '../utils/geo';
 
 const STORAGE_KEY = '@motiva:equipes';
+
+// Rodovia legada salva antes da correção (ex: SP-280) → rodovia atual — ver
+// mesma migração em KanbanContext.tsx e README ("SP-280 não é Motiva").
+function comRodoviaAtual(equipe: Equipe): Equipe {
+  const rodovia = migrarRodoviaLegada(equipe.rodovia);
+  return rodovia === equipe.rodovia ? equipe : { ...equipe, rodovia };
+}
 
 type EquipesContextType = {
   equipes:          Equipe[];
@@ -12,6 +20,8 @@ type EquipesContextType = {
   excluirEquipe:    (id: string) => void;
   alternarStatus:   (id: string) => StatusEquipe;
   setStatusEquipe:  (id: string, status: StatusEquipe) => void;
+  /** false até o carregamento inicial (AsyncStorage ou seed do mock) terminar. */
+  isHydrated:       boolean;
 };
 
 const EquipesContext = createContext<EquipesContextType | null>(null);
@@ -36,7 +46,7 @@ export function EquipesProvider({ children }: { children: ReactNode }) {
 
         const parsed = JSON.parse(raw) as Equipe[];
         if (Array.isArray(parsed) && !ignore) {
-          setEquipes(parsed);
+          setEquipes(parsed.map(comRodoviaAtual));
         } else if (!ignore) {
           setEquipes(mockEquipes);
         }
@@ -94,7 +104,7 @@ export function EquipesProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <EquipesContext.Provider value={{ equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus, setStatusEquipe }}>
+    <EquipesContext.Provider value={{ equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus, setStatusEquipe, isHydrated }}>
       {children}
     </EquipesContext.Provider>
   );

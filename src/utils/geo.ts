@@ -12,6 +12,20 @@ const BASE_ROTA: Record<string, { lat: number; lon: number }> = {
   'BR-381': { lat: -23.4966494, lon: -46.5596930 }, // Rodovia Fernão Dias, Guarulhos/SP
 };
 
+// Rodovias usadas em versões anteriores do mock que foram corrigidas depois
+// (ex: SP-280/Castelo Branco não é administrada pela Motiva — ver README).
+// Sem isso, uma instalação com dados salvos no AsyncStorage/localStorage de
+// antes da correção ficaria presa pra sempre com a rodovia errada, já que o
+// mock só é usado como seed na primeira execução (nunca sobrescreve dado já salvo).
+const RODOVIA_MIGRACAO: Record<string, string> = {
+  'SP-280': 'SP-330',
+};
+
+/** Traduz uma rodovia legada/descontinuada pra sua substituta atual (ou devolve a mesma, se já é atual). */
+export function migrarRodoviaLegada(rodovia: string): string {
+  return RODOVIA_MIGRACAO[rodovia] ?? rodovia;
+}
+
 const PASSO_POR_KM = 0.009; // ~1km em graus, deslocando trecho a trecho
 
 function deslocar(base: { lat: number; lon: number }, kmInicio: number): { lat: number; lon: number } {

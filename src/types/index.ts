@@ -60,6 +60,10 @@ export type KanbanItem = {
   /** Coordenadas do ponto médio do trecho — usadas no mapa e na consulta de clima (Open-Meteo). */
   lat: number;
   lon: number;
+  /** Data ISO ('YYYY-MM-DD') em que o trecho entrou na severidade atual — atualizada
+   *  automaticamente pelo KanbanContext sempre que `severidade` muda. Usada para calcular
+   *  o "tempo médio de resposta" do Dashboard. */
+  entrouNaSeveridadeEm: string;
 };
 
 /** Retorno resumido da consulta de clima atual (Open-Meteo) para um trecho. */

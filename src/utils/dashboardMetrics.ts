@@ -1,6 +1,6 @@
 // Lógica pura do Dashboard Operacional — sem JSX, sem Context, só cálculo.
 // Recebe dados já carregados (KanbanItem[], Equipe[], SeveridadeSnapshot[]) e devolve números prontos.
-import { Equipe, KanbanItem, SeveridadeSnapshot, SeveridadeVegetacao } from '../types';
+import { ClimaAtual, Equipe, KanbanItem, SeveridadeSnapshot, SeveridadeVegetacao } from '../types';
 
 // ─── Constantes de negócio (documentadas, nada de "número mágico" solto) ──────
 
@@ -18,17 +18,34 @@ export const FATOR_CRESCIMENTO_SEVERIDADE: Record<SeveridadeVegetacao, number> =
 };
 
 /**
- * Fator de "clima" neutro, 0–100 — usado no score de priorização enquanto não
- * existir uma fonte real de dado climático por trecho. Hoje "Integrações → API
- * de Clima" é só um toggle "Conectado" sem integração de verdade por trás, e
- * `KanbanItem` não guarda nenhum dado climático por trecho. Em vez de fingir
- * um valor "real" (que mudaria o ranking sem nenhuma base), usamos um valor
- * fixo igual pra todos os trechos: o peso de clima configurado em Parâmetros
- * do Sistema participa da conta, mas não diferencia nenhum trecho do outro —
- * na prática, ele só dilui a influência dos outros dois pesos (que são reais).
- * Trocar por um valor de verdade exige integrar uma API de clima de fato.
+ * Fator de "clima" neutro, 0–100 — usado como fallback no score de priorização
+ * enquanto o clima real de um trecho ainda não foi carregado (ex: request da
+ * Open-Meteo em andamento ou falhou) ou para um trecho sem coordenada válida.
  */
 export const FATOR_CLIMA_NEUTRO = 50;
+
+/**
+ * Fator de "clima", 0–100, a partir de um dado real da Open-Meteo
+ * (`ClimaAtual`, buscado por `climaService.buscarClimaAtual`). Quanto maior,
+ * mais favorável o clima atual é ao crescimento acelerado de vegetação — o que
+ * eleva a prioridade do trecho no ranking:
+ * - **Umidade relativa** (0–100%) pesa direto — ambiente úmido acelera crescimento.
+ * - **Temperatura**: cresce de 0 a partir de 15°C, satura em 30°C (faixa de
+ *   crescimento vegetativo mais ativo nas rodovias do sudeste/sul do Brasil).
+ * - **Precipitação instantânea** (mm no momento da consulta) soma um bônus —
+ *   é um sinal de chuva ativa, não um acumulado histórico (a Open-Meteo grátis
+ *   usada aqui só devolve o valor "agora"; um acumulado de 7 dias exigiria o
+ *   endpoint de previsão/histórico, não usado ainda).
+ * Pesos dos 3 componentes (50% umidade, 35% temperatura, 15% chuva do momento)
+ * são uma calibração de demonstração, não um modelo agronômico validado.
+ */
+export function fatorClima(clima: ClimaAtual): number {
+  const fUmidade = Math.max(0, Math.min(100, clima.umidadePct));
+  const fTemperatura = Math.max(0, Math.min(100, ((clima.temperaturaC - 15) / 15) * 100));
+  const fChuva = Math.max(0, Math.min(100, clima.precipitacaoMm * 20));
+
+  return Math.round(fUmidade * 0.5 + fTemperatura * 0.35 + fChuva * 0.15);
+}
 
 /**
  * Prazo-alvo (SLA), em dias, por severidade — inspirado no Anexo 06/ARTESP.
@@ -70,6 +87,14 @@ function diffEmDias(inicio: Date, fim: Date): number {
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 }
 
+/** Converte 'YYYY-MM-DD' (formato usado em `entrouNaSeveridadeEm`) para Date. */
+function parseDataISO(data: string): Date | null {
+  const m = data.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const [, yyyy, mm, dd] = m;
+  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
 /** Dias desde o último serviço registrado do trecho (ou DIAS_SEM_SERVICO_FALLBACK). */
 export function diasDesdeUltimoServico(item: KanbanItem, referencia: Date = new Date()): number {
   if (!item.ultimoServico) return DIAS_SEM_SERVICO_FALLBACK;
@@ -109,16 +134,18 @@ export function fatorManutencao(
  * Score de priorização (0–100), média ponderada pelos 3 pesos configuráveis:
  * - Manutenção → `fatorManutencao` (dado real: dias desde o último serviço).
  * - Crescimento → `FATOR_CRESCIMENTO_SEVERIDADE` (dado real: severidade/altura atual).
- * - Clima → `FATOR_CLIMA_NEUTRO` (placeholder documentado — sem fonte de dado real hoje).
+ * - Clima → `fatorClima(clima)` quando o clima real do trecho (Open-Meteo) já foi
+ *   carregado; cai para `FATOR_CLIMA_NEUTRO` enquanto isso (ver `fatorClima`).
  */
 export function scorePriorizacao(
   item: KanbanItem,
   pesos: PesosCriticidade,
+  clima?: ClimaAtual,
   referencia: Date = new Date(),
 ): number {
   const fManutencao = fatorManutencao(item, pesos.frequenciaReavaliacaoDias, referencia);
   const fCrescimento = FATOR_CRESCIMENTO_SEVERIDADE[item.severidade];
-  const fClima = FATOR_CLIMA_NEUTRO;
+  const fClima = clima ? fatorClima(clima) : FATOR_CLIMA_NEUTRO;
 
   const somaPesos = pesos.pesoManutencao + pesos.pesoClima + pesos.pesoCrescimento || 1;
   const somaPonderada =
@@ -154,14 +181,31 @@ export function percentualCumprimentoSLA(itens: KanbanItem[], referencia: Date =
 }
 
 /**
- * "Tempo médio de resposta" (dias entre entrada em severidade alta e o último serviço).
- * BLOQUEADO hoje: o modelo de dados atual não guarda quando um trecho entrou na
- * severidade atual (só o snapshot diário de contagens, usado no gráfico de tendência).
- * Retorna null até existir um log de transição de severidade por item — o componente
- * de UI deve exibir "—" / "sem dado suficiente" nesse caso.
+ * "Tempo médio de resposta": média, em dias, entre um trecho entrar na severidade
+ * atual (`entrouNaSeveridadeEm`, atualizado automaticamente pelo KanbanContext a
+ * cada mudança de severidade) e o `ultimoServico` registrado nele — só conta
+ * trechos cujo último serviço aconteceu DEPOIS de entrar na severidade atual
+ * (senão o serviço é de um ciclo anterior e não mede resposta ao problema atual).
+ * Só considera severidades com prazo-alvo definido (`SLA_DIAS`), mesmo critério
+ * de `percentualCumprimentoSLA`. Retorna null quando nenhum trecho tem um
+ * serviço "de resposta" válido ainda — a UI deve exibir "—" nesse caso.
  */
-export function tempoMedioRespostaDias(_itens: KanbanItem[]): number | null {
-  return null;
+export function tempoMedioRespostaDias(itens: KanbanItem[]): number | null {
+  const tempos: number[] = [];
+
+  for (const item of itens) {
+    if (SLA_DIAS[item.severidade] === undefined) continue;
+    if (!item.ultimoServico) continue;
+
+    const entrada = parseDataISO(item.entrouNaSeveridadeEm);
+    const servico = parseDataBR(item.ultimoServico.data);
+    if (!entrada || !servico || servico < entrada) continue;
+
+    tempos.push(diffEmDias(entrada, servico));
+  }
+
+  if (tempos.length === 0) return null;
+  return Math.round(tempos.reduce((soma, d) => soma + d, 0) / tempos.length);
 }
 
 // ─── Distribuição por severidade (para o donut) ────────────────────────────────
@@ -192,12 +236,13 @@ export type TrechoRanking = {
 export function rankearTrechos(
   itens: KanbanItem[],
   pesos: PesosCriticidade,
+  climaPorItem: Record<string, ClimaAtual> = {},
   referencia: Date = new Date(),
 ): TrechoRanking[] {
   return itens
     .map((item) => ({
       item,
-      score: scorePriorizacao(item, pesos, referencia),
+      score: scorePriorizacao(item, pesos, climaPorItem[item.id], referencia),
       diasSemServico: diasDesdeUltimoServico(item, referencia),
     }))
     .sort((a, b) => b.score - a.score);
@@ -222,10 +267,11 @@ function montarMotivo(item: KanbanItem, diasSemServico: number): string {
 export function gerarRecomendacoes(
   itens: KanbanItem[],
   pesos: PesosCriticidade,
+  climaPorItem: Record<string, ClimaAtual> = {},
   limite = 5,
   referencia: Date = new Date(),
 ): Recomendacao[] {
-  return rankearTrechos(itens, pesos, referencia)
+  return rankearTrechos(itens, pesos, climaPorItem, referencia)
     .slice(0, limite)
     .map(({ item, score, diasSemServico }) => ({ item, score, motivo: montarMotivo(item, diasSemServico) }));
 }

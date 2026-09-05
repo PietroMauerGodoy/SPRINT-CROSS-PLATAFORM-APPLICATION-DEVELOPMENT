@@ -1,12 +1,13 @@
 // Conecta o KanbanContext/EquipesContext ao módulo puro de métricas do Dashboard.
 // Os componentes de tela só devem consumir este hook — nenhuma fórmula deve
 // aparecer solta em JSX de tela.
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
-import { SeveridadeSnapshot, Usuario } from '../types';
+import { ClimaAtual, SeveridadeSnapshot, Usuario } from '../types';
 import { getKanbanItemsVisiveis, getEquipesVisiveis, podeVerDashboardCompleto } from '../utils/permissions';
+import { buscarClimaAtual } from '../services/climaService';
 import {
   contarTrechosCriticos,
   contarEquipesEmCampo,
@@ -69,6 +70,32 @@ export function useDashboardMetrics({
   const { equipes } = useEquipes();
   const { pesoManutencao, pesoClima, pesoCrescimento, frequenciaReavaliacao } = useConfiguracoes();
 
+  // Clima real (Open-Meteo) por trecho, usado no score de priorização — ver
+  // `fatorClima` em dashboardMetrics.ts. Busca só os trechos ainda não
+  // cacheados (por id), então itens já resolvidos não disparam nova requisição
+  // a cada render. Falha silenciosa por trecho: se a API não responder para um
+  // item, o score dele cai para o fallback neutro (`FATOR_CLIMA_NEUTRO`).
+  const [climaPorItem, setClimaPorItem] = useState<Record<string, ClimaAtual>>({});
+
+  useEffect(() => {
+    const pendentes = itens.filter(
+      (item) => !(item.id in climaPorItem) && Number.isFinite(item.lat) && Number.isFinite(item.lon),
+    );
+    if (pendentes.length === 0) return;
+
+    let cancelado = false;
+    pendentes.forEach(async (item) => {
+      try {
+        const clima = await buscarClimaAtual(item.lat, item.lon);
+        if (!cancelado) setClimaPorItem((atual) => ({ ...atual, [item.id]: clima }));
+      } catch {
+        // Sem clima real pra esse trecho — scorePriorizacao cai pro fallback neutro.
+      }
+    });
+
+    return () => { cancelado = true; };
+  }, [itens, climaPorItem]);
+
   const pesos: PesosCriticidade = useMemo(() => {
     const freq = Number(frequenciaReavaliacao);
     return {
@@ -112,11 +139,11 @@ export function useDashboardMetrics({
       percentualSLA: percentualCumprimentoSLA(itensFiltrados),
       tempoMedioResposta: tempoMedioRespostaDias(itensFiltrados),
       distribuicao: distribuicaoPorSeveridade(itensFiltrados),
-      ranking: rankearTrechos(itensFiltrados, pesos),
-      recomendacoes: gerarRecomendacoes(itensFiltrados, pesos, limiteRecomendacoes),
+      ranking: rankearTrechos(itensFiltrados, pesos, climaPorItem),
+      recomendacoes: gerarRecomendacoes(itensFiltrados, pesos, climaPorItem, limiteRecomendacoes),
       tendencia: temHistoricoConfiavel ? serieTendenciaGraveCritico(snapshots, periodoDias) : [],
       deltaTrechosCriticos: temHistoricoConfiavel ? deltaTrechosCriticos(snapshots, periodoDias) : null,
       temHistoricoConfiavel,
     };
-  }, [usuario, itens, equipes, rodovia, periodoDias, snapshots, limiteRecomendacoes, pesos]);
+  }, [usuario, itens, equipes, rodovia, periodoDias, snapshots, limiteRecomendacoes, pesos, climaPorItem]);
 }
