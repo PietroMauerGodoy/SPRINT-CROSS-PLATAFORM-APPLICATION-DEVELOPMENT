@@ -22,7 +22,8 @@ import { useNotificacoes } from '../context/NotificacoesContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import { useAuth } from '../context/AuthContext';
 import { useOcorrencias } from '../context/OcorrenciasContext';
-import { podeCriarOcorrencia, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
+import { useKanban } from '../context/KanbanContext';
+import { podeCriarOuExcluirOcorrencia, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
 
 import bgRoxo    from '../../assets/images/backgroundroxo.png';
 
@@ -44,13 +45,16 @@ const STATUS_OPTS: { label: string; value: Ocorrencia['status'] | 'todos' }[] = 
   { label: 'Resolvida',    value: 'resolvida'    },
 ];
 
+const ITENS_POR_PAGINA = 7;
+
 export default function OcorrenciasScreen({ navigation }: Props) {
   const { adicionarNotificacao } = useNotificacoes();
   const { usuario, logout } = useAuth();
-  const podeCriar = usuario ? podeCriarOcorrencia(usuario) : false;
+  const podeCriar = usuario ? podeCriarOuExcluirOcorrencia(usuario) : false;
   const mostrarOperacional = usuario ? podeVerItemMenuOperacional(usuario) : false;
   const { notifPrefs } = useConfiguracoes();
   const { ocorrencias, adicionarOcorrencia } = useOcorrencias();
+  const { itens: trechos } = useKanban();
   const [busca, setBusca]             = useState('');
   const [riscoFiltro, setRiscoFiltro] = useState<RiscoNivel | 'todos'>('todos');
   const [statusFiltro, setStatusFiltro] = useState<Ocorrencia['status'] | 'todos'>('todos');
@@ -58,26 +62,51 @@ export default function OcorrenciasScreen({ navigation }: Props) {
   const [dropStatus, setDropStatus]   = useState(false);
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const [showLogout, setShowLogout] = useState(false);
+  const [pagina, setPagina] = useState(1);
 
   // Cadastro
   const [modalCriar, setModalCriar]   = useState(false);
   const [fTitulo,    setFTitulo]      = useState('');
   const [fDescricao, setFDescricao]   = useState('');
-  const [fLocal,     setFLocal]       = useState('');
+  const [fKanbanItemId, setFKanbanItemId] = useState('');
   const [fCategoria, setFCategoria]   = useState('');
   const [fRisco,     setFRisco]       = useState<RiscoNivel>('medio');
   const [fResponsavel, setFResponsavel] = useState('');
 
   const filtradas = useMemo(() => {
     const t = busca.toLowerCase();
-    return ocorrencias.filter((o) =>
-      (o.titulo.toLowerCase().includes(t) ||
-       o.local.toLowerCase().includes(t)  ||
-       o.categoria.toLowerCase().includes(t)) &&
-      (riscoFiltro  === 'todos' || o.risco  === riscoFiltro)  &&
-      (statusFiltro === 'todos' || o.status === statusFiltro)
-    );
-  }, [ocorrencias, busca, riscoFiltro, statusFiltro]);
+    return ocorrencias.filter((o) => {
+      const trecho = trechos.find((k) => k.id === o.kanbanItemId);
+      const textoTrecho = trecho ? `${trecho.rodovia} ${trecho.nomeEquipe}`.toLowerCase() : '';
+      return (
+        (o.titulo.toLowerCase().includes(t) ||
+         textoTrecho.includes(t) ||
+         o.categoria.toLowerCase().includes(t)) &&
+        (riscoFiltro  === 'todos' || o.risco  === riscoFiltro)  &&
+        (statusFiltro === 'todos' || o.status === statusFiltro)
+      );
+    });
+  }, [ocorrencias, trechos, busca, riscoFiltro, statusFiltro]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / ITENS_POR_PAGINA));
+  const paginaAtual  = Math.min(pagina, totalPaginas);
+  const paginadas    = filtradas.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
+
+  function resetPagina() { setPagina(1); }
+
+  function paginasBotoes() {
+    const pages: (number | '...')[] = [];
+    if (totalPaginas <= 5) {
+      for (let i = 1; i <= totalPaginas; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (paginaAtual > 3) pages.push('...');
+      for (let i = Math.max(2, paginaAtual - 1); i <= Math.min(totalPaginas - 1, paginaAtual + 1); i++) pages.push(i);
+      if (paginaAtual < totalPaginas - 2) pages.push('...');
+      pages.push(totalPaginas);
+    }
+    return pages;
+  }
 
   const contadores = useMemo(() => ({
     total:        ocorrencias.length,
@@ -91,21 +120,21 @@ export default function OcorrenciasScreen({ navigation }: Props) {
   }
 
   function abrirCadastro() {
-    setFTitulo(''); setFDescricao(''); setFLocal('');
+    setFTitulo(''); setFDescricao(''); setFKanbanItemId(trechos[0]?.id ?? '');
     setFCategoria(''); setFRisco('medio'); setFResponsavel('');
     setModalCriar(true);
   }
 
  async function handleSalvar() {
-    if (!fTitulo.trim() || !fLocal.trim() || !fCategoria.trim()) {
-      Alert.alert('Atenção', 'Preencha os campos obrigatórios: título, local e categoria.');
+    if (!fTitulo.trim() || !fKanbanItemId || !fCategoria.trim()) {
+      Alert.alert('Atenção', 'Preencha os campos obrigatórios: título, trecho e categoria.');
       return;
     }
 
-   const novaId = await adicionarOcorrencia({
+   await adicionarOcorrencia({
      titulo: fTitulo.trim(),
      descricao: fDescricao.trim(),
-     local: fLocal.trim(),
+     kanbanItemId: fKanbanItemId,
      categoria: fCategoria.trim(),
      risco: fRisco,
      status: 'aberta',
@@ -113,25 +142,15 @@ export default function OcorrenciasScreen({ navigation }: Props) {
      responsavel: fResponsavel.trim() || undefined,
    });
 
-   const nova: Ocorrencia = {
-     id: novaId,
-     titulo: fTitulo.trim(),
-     descricao: fDescricao.trim(),
-     local: fLocal.trim(),
-     categoria: fCategoria.trim(),
-     risco: fRisco,
-     status: 'aberta',
-     data: new Date().toISOString().split('T')[0],
-     responsavel: fResponsavel.trim() || undefined,
-   };
    setModalCriar(false);
 
-   if (nova.risco === 'alto' && notifPrefs.novaOcorrenciaCritica) {
+   if (fRisco === 'alto' && notifPrefs.novaOcorrenciaCritica) {
+     const trecho = trechos.find((k) => k.id === fKanbanItemId);
      adicionarNotificacao({
        cor: '#EF4444',
        icone: 'warning-outline',
        titulo: 'Nova ocorrência crítica',
-       desc: `${nova.titulo} — ${nova.local}`,
+       desc: `${fTitulo.trim()} — ${trecho ? `${trecho.rodovia} · ${trecho.nomeEquipe}` : 'trecho não encontrado'}`,
      });
    }
  }
@@ -158,7 +177,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
               { icon: 'people-outline',    label: 'Equipes',     ativo: false, onPress: () => navigation.navigate('Equipes') },
               { icon: 'albums-outline',    label: 'Kanban',      ativo: false, onPress: () => navigation.navigate('Kanban') },
               { icon: 'warning-outline',   label: 'Ocorrências', ativo: true,  onPress: undefined },
-              { icon: 'map-outline',       label: 'Trechos',     ativo: false, onPress: undefined },
+              { icon: 'map-outline',       label: 'Trechos',     ativo: false, onPress: () => navigation.navigate('Trechos') },
               { icon: 'calendar-outline',  label: 'Planejamento',ativo: false, onPress: undefined },
 { icon: 'bar-chart-outline', label: 'Relatórios',  ativo: false, onPress: undefined },
               { icon: 'settings-outline',  label: 'Config.',     ativo: false, onPress: () => navigation.navigate('Configuracoes') },
@@ -221,13 +240,13 @@ export default function OcorrenciasScreen({ navigation }: Props) {
                 <Ionicons name="search-outline" size={15} color="rgba(255,255,255,0.5)" />
                 <TextInput
                   style={s.searchInput}
-                  placeholder="Buscar por título, local ou categoria..."
+                  placeholder="Buscar por título, trecho ou categoria..."
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   value={busca}
-                  onChangeText={setBusca}
+                  onChangeText={(t) => { setBusca(t); resetPagina(); }}
                 />
                 {busca.length > 0 && (
-                  <TouchableOpacity onPress={() => setBusca('')}>
+                  <TouchableOpacity onPress={() => { setBusca(''); resetPagina(); }}>
                     <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.5)" />
                   </TouchableOpacity>
                 )}
@@ -251,7 +270,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
                       <TouchableOpacity
                         key={opt.value}
                         style={[s.dropItem, riscoFiltro === opt.value && s.dropItemOn]}
-                        onPress={() => { setRiscoFiltro(opt.value); setDropRisco(false); }}
+                        onPress={() => { setRiscoFiltro(opt.value); setDropRisco(false); resetPagina(); }}
                       >
                         <Text style={[s.dropItemTxt, riscoFiltro === opt.value && s.dropItemTxtOn]}>{opt.label}</Text>
                       </TouchableOpacity>
@@ -278,7 +297,7 @@ export default function OcorrenciasScreen({ navigation }: Props) {
                       <TouchableOpacity
                         key={opt.value}
                         style={[s.dropItem, statusFiltro === opt.value && s.dropItemOn]}
-                        onPress={() => { setStatusFiltro(opt.value); setDropStatus(false); }}
+                        onPress={() => { setStatusFiltro(opt.value); setDropStatus(false); resetPagina(); }}
                       >
                         <Text style={[s.dropItemTxt, statusFiltro === opt.value && s.dropItemTxtOn]}>{opt.label}</Text>
                       </TouchableOpacity>
@@ -301,9 +320,44 @@ export default function OcorrenciasScreen({ navigation }: Props) {
                 <Text style={s.emptySubTxt}>Tente ajustar os filtros</Text>
               </View>
             ) : (
-              filtradas.map((oc) => (
-                <OcorrenciaCard key={oc.id} ocorrencia={oc} onPress={abrirDetalhe} />
-              ))
+              <>
+                {paginadas.map((oc) => (
+                  <OcorrenciaCard key={oc.id} ocorrencia={oc} onPress={abrirDetalhe} />
+                ))}
+
+                {/* Paginação */}
+                <View style={s.pagination}>
+                  <TouchableOpacity
+                    style={[s.pgBtn, paginaAtual === 1 && s.pgBtnOff]}
+                    onPress={() => setPagina((p) => Math.max(1, p - 1))}
+                    disabled={paginaAtual === 1}
+                  >
+                    <Ionicons name="chevron-back" size={14} color={paginaAtual === 1 ? 'rgba(255,255,255,0.25)' : '#fff'} />
+                  </TouchableOpacity>
+
+                  {paginasBotoes().map((p, i) =>
+                    p === '...' ? (
+                      <Text key={`d${i}`} style={s.pgDots}>...</Text>
+                    ) : (
+                      <TouchableOpacity
+                        key={p}
+                        style={[s.pgBtn, paginaAtual === p && s.pgBtnOn]}
+                        onPress={() => setPagina(p as number)}
+                      >
+                        <Text style={[s.pgTxt, paginaAtual === p && s.pgTxtOn]}>{p}</Text>
+                      </TouchableOpacity>
+                    )
+                  )}
+
+                  <TouchableOpacity
+                    style={[s.pgBtn, paginaAtual === totalPaginas && s.pgBtnOff]}
+                    onPress={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaAtual === totalPaginas}
+                  >
+                    <Ionicons name="chevron-forward" size={14} color={paginaAtual === totalPaginas ? 'rgba(255,255,255,0.25)' : '#fff'} />
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
 
           </ScrollView>
@@ -326,9 +380,8 @@ export default function OcorrenciasScreen({ navigation }: Props) {
 
               {/* Campos de texto */}
               {([
-                { label: 'Título *',      val: fTitulo,     set: setFTitulo,     ph: 'Ex: Vazamento de óleo na pista' },
-                { label: 'Local *',       val: fLocal,      set: setFLocal,      ph: 'Ex: BR-116 KM 42 - Setor B'    },
-                { label: 'Categoria *',   val: fCategoria,  set: setFCategoria,  ph: 'Ex: Segurança, EPI, Infraestrutura' },
+                { label: 'Título *',      val: fTitulo,     set: setFTitulo,     ph: 'Ex: Galho caído sobre o acostamento' },
+                { label: 'Categoria *',   val: fCategoria,  set: setFCategoria,  ph: 'Ex: Sinalização, Obstrução, Manutenção' },
                 { label: 'Responsável',   val: fResponsavel,set: setFResponsavel,ph: 'Ex: Eng. Silva'                 },
               ] as { label: string; val: string; set: (v: string) => void; ph: string }[]).map((f) => (
                 <View key={f.label} style={s.mField}>
@@ -342,6 +395,24 @@ export default function OcorrenciasScreen({ navigation }: Props) {
                   />
                 </View>
               ))}
+
+              {/* Trecho vinculado */}
+              <View style={s.mField}>
+                <Text style={s.mLabel}>Trecho *</Text>
+                <View style={s.chipRow}>
+                  {trechos.map((t) => (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[s.trechoChip, fKanbanItemId === t.id && s.trechoChipOn]}
+                      onPress={() => setFKanbanItemId(t.id)}
+                    >
+                      <Text style={[s.trechoChipTxt, fKanbanItemId === t.id && s.chipTxtOn]}>
+                        {t.rodovia} · Km {t.kmInicio}-{t.kmFim} · {t.nomeEquipe}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
               {/* Descrição */}
               <View style={s.mField}>
@@ -436,10 +507,13 @@ const s = StyleSheet.create({
   mLabel:         { fontSize: 11, fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 5 },
   mInput:         { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: colors.secondary },
   mInputMulti:    { minHeight: 72, textAlignVertical: 'top' },
-  chipRow:        { flexDirection: 'row' },
-  chip:           { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#E2E8F0', marginRight: 8 },
+  chipRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:           { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#E2E8F0' },
   chipTxt:        { fontSize: 12, color: '#64748B', fontWeight: '600' },
   chipTxtOn:      { color: '#fff', fontWeight: '700' },
+  trechoChip:     { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, borderColor: '#E2E8F0' },
+  trechoChipOn:   { backgroundColor: colors.primary, borderColor: colors.primary },
+  trechoChipTxt:  { fontSize: 11, color: '#64748B', fontWeight: '600' },
   mFooter:        { flexDirection: 'row', marginTop: 4 },
   mBtnCancel:     { flex: 1, paddingVertical: 11, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', marginRight: 10 },
   mBtnCancelTxt:  { color: '#64748B', fontWeight: '500', fontSize: 13 },
@@ -512,4 +586,13 @@ const s = StyleSheet.create({
   emptyBox:    { alignItems: 'center', paddingVertical: 60 },
   emptyTxt:    { color: 'rgba(255,255,255,0.5)', fontSize: 15, fontWeight: '600', marginTop: 14 },
   emptySubTxt: { color: 'rgba(255,255,255,0.3)', fontSize: 12, marginTop: 4 },
+
+  // Paginação
+  pagination: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 10 },
+  pgBtn:   { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginLeft: 5 },
+  pgBtnOn: { backgroundColor: '#fff', borderColor: '#fff' },
+  pgBtnOff:{ opacity: 0.3 },
+  pgTxt:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+  pgTxtOn: { color: colors.primary, fontWeight: '700' },
+  pgDots:  { fontSize: 13, color: 'rgba(255,255,255,0.35)', paddingHorizontal: 3 },
 });

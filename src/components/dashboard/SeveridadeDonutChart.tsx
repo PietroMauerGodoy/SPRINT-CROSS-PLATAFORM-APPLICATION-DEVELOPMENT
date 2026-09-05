@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 import { DistribuicaoSeveridade, SEVERIDADE_LABEL } from '../../utils/dashboardMetrics';
 import { SeveridadeVegetacao } from '../../types';
 
@@ -24,38 +24,41 @@ export default function SeveridadeDonutChart({ distribuicao, size = 150 }: Props
   const circumference = 2 * Math.PI * radius;
   const total = distribuicao.reduce((acc, d) => acc + d.quantidade, 0);
 
+  // Desloca o início do anel do "3 horas" (padrão do <Circle>) pro "12 horas",
+  // sem usar <G rotation origin> — essa combinação tem um bug conhecido no
+  // react-native-svg na web (prepare.js grava a chave 'transform-origin' em vez
+  // de 'transformOrigin', o que o React DOM rejeita com "Invalid DOM property").
+  const offsetTopo = circumference / 4;
   let acumulado = 0;
 
   return (
     <View style={s.wrap}>
       <View style={{ width: size, height: size }}>
         <Svg width={size} height={size}>
-          <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
-            {total === 0 ? (
-              <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.12)" strokeWidth={STROKE} fill="none" />
-            ) : (
-              distribuicao
-                .filter((d) => d.quantidade > 0)
-                .map((d) => {
-                  const segmento = (d.quantidade / total) * circumference;
-                  const offset = -acumulado;
-                  acumulado += segmento;
-                  return (
-                    <Circle
-                      key={d.severidade}
-                      cx={size / 2}
-                      cy={size / 2}
-                      r={radius}
-                      stroke={SEVERIDADE_COR[d.severidade]}
-                      strokeWidth={STROKE}
-                      strokeDasharray={`${segmento} ${circumference - segmento}`}
-                      strokeDashoffset={offset}
-                      fill="none"
-                    />
-                  );
-                })
-            )}
-          </G>
+          {total === 0 ? (
+            <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.12)" strokeWidth={STROKE} fill="none" />
+          ) : (
+            distribuicao
+              .filter((d) => d.quantidade > 0)
+              .map((d) => {
+                const segmento = (d.quantidade / total) * circumference;
+                const offset = offsetTopo - acumulado;
+                acumulado += segmento;
+                return (
+                  <Circle
+                    key={d.severidade}
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={SEVERIDADE_COR[d.severidade]}
+                    strokeWidth={STROKE}
+                    strokeDasharray={`${segmento} ${circumference - segmento}`}
+                    strokeDashoffset={offset}
+                    fill="none"
+                  />
+                );
+              })
+          )}
         </Svg>
         <View style={s.centerLabel} pointerEvents="none">
           <Text style={s.centerValor}>{total}</Text>

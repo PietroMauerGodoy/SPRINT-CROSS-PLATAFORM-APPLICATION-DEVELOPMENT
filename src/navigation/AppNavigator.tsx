@@ -9,6 +9,7 @@ import OcorrenciasScreen from '../screens/OcorrenciasScreen';
 import DetalheScreen from '../screens/DetalheScreen';
 import KanbanScreen from '../screens/KanbanScreen';
 import ConfiguracoesScreen from '../screens/ConfiguracoesScreen';
+import TrechosScreen from '../screens/TrechosScreen';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 
@@ -42,6 +43,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Ocorrencias"   component={OcorrenciasScreen}   />
             <Stack.Screen name="Detalhe"       component={DetalheScreen}       />
             <Stack.Screen name="Configuracoes" component={ConfiguracoesScreen} />
+            <Stack.Screen name="Trechos"       component={TrechosScreen}       />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

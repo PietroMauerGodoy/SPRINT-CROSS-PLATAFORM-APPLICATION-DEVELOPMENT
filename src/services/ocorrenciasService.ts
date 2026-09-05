@@ -31,7 +31,7 @@ export async function carregarOcorrencias(): Promise<Ocorrencia[]> {
     const listaValida = parsed.filter((item): item is Ocorrencia => {
       if (!item || typeof item !== 'object') return false;
       const candidate = item as Partial<Ocorrencia>;
-      return typeof candidate.id === 'number' && typeof candidate.titulo === 'string' && typeof candidate.local === 'string';
+      return typeof candidate.id === 'number' && typeof candidate.titulo === 'string' && typeof candidate.kanbanItemId === 'string';
     });
 
     ocorrenciasEmMemoria = listaValida.length > 0 ? listaValida : [...mockOcorrencias];
@@ -65,6 +65,11 @@ export async function atualizarOcorrencia(id: number, dados: Partial<Ocorrencia>
   );
 
   await salvarOcorrencias(proximaLista);
+}
+
+export async function removerOcorrencia(id: number): Promise<void> {
+  const listaAtual = await listarOcorrencias();
+  await salvarOcorrencias(listaAtual.filter((ocorrencia) => ocorrencia.id !== id));
 }
 
 export function buscarOcorrenciaPorId(id: number): Ocorrencia | undefined {

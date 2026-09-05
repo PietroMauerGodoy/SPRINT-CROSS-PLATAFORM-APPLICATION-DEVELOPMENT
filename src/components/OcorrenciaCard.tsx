@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Ocorrencia, RiscoNivel } from '../types';
 import { colors } from '../theme';
+import { useKanban } from '../context/KanbanContext';
 
 type Props = {
   ocorrencia: Ocorrencia;
@@ -38,6 +39,8 @@ function formatarData(data: string) {
 }
 
 export default function OcorrenciaCard({ ocorrencia, onPress }: Props) {
+  const { itens } = useKanban();
+  const trecho = itens.find((i) => i.id === ocorrencia.kanbanItemId);
   const risco  = riscoCor(ocorrencia.risco);
   const status = statusCor(ocorrencia.status);
 
@@ -69,7 +72,9 @@ export default function OcorrenciaCard({ ocorrencia, onPress }: Props) {
         <View style={s.bottomRow}>
           <View style={s.localRow}>
             <Ionicons name="location-outline" size={11} color="#94A3B8" />
-            <Text style={s.localTxt} numberOfLines={1}>{ocorrencia.local}</Text>
+            <Text style={s.localTxt} numberOfLines={1}>
+              {trecho ? `${trecho.rodovia} · Km ${trecho.kmInicio}-${trecho.kmFim} · ${trecho.nomeEquipe}` : 'Trecho não encontrado'}
+            </Text>
           </View>
 
           <View style={s.badges}>

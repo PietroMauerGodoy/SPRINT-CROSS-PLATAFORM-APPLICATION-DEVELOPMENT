@@ -25,7 +25,7 @@ import {
   PesosCriticidade,
 } from '../utils/dashboardMetrics';
 
-export type RodoviaFiltro = 'Todas' | 'BR-116' | 'BR-381' | 'SP-280';
+export type RodoviaFiltro = 'Todas' | 'BR-116' | 'BR-381' | 'SP-330';
 export type PeriodoFiltroDias = 7 | 30 | 90;
 
 type UseDashboardMetricsParams = {

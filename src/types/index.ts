@@ -3,7 +3,9 @@ export type RiscoNivel = 'baixo' | 'medio' | 'alto';
 export type Ocorrencia = {
   id: number;
   descricao: string;
-  local: string;
+  /** Vínculo com o trecho real do Kanban (KanbanItem.id) — rodovia/km/equipe são
+   *  derivados dele, não duplicados aqui. */
+  kanbanItemId: string;
   risco: RiscoNivel;
   data: string;
   titulo: string;
@@ -55,6 +57,18 @@ export type KanbanItem = {
   responsavel: string;
   observacao: string;
   ultimoServico: { data: string; responsavel: string } | null;
+  /** Coordenadas do ponto médio do trecho — usadas no mapa e na consulta de clima (Open-Meteo). */
+  lat: number;
+  lon: number;
+};
+
+/** Retorno resumido da consulta de clima atual (Open-Meteo) para um trecho. */
+export type ClimaAtual = {
+  temperaturaC: number;
+  precipitacaoMm: number;
+  ventoKmh: number;
+  umidadePct: number;
+  codigoTempo: number;
 };
 
 export type SeveridadeSnapshot = {
@@ -71,4 +85,5 @@ export type RootStackParamList = {
   Configuracoes: undefined;
   Cadastro: undefined;
   Detalhe: { ocorrencia: Ocorrencia };
+  Trechos: undefined;
 };

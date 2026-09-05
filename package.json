@@ -11,8 +11,10 @@
     "expo": "~56.0.9",
     "expo-linear-gradient": "^56.0.4",
     "expo-status-bar": "~56.0.4",
+    "leaflet": "^1.9.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-leaflet": "^5.0.0",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "^3.0.0",
     "react-native-safe-area-context": "^5.8.0",
@@ -21,6 +23,7 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },

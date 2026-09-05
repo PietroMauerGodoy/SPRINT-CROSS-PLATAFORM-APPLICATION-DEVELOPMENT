@@ -2,6 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { KanbanItem, SeveridadeVegetacao } from '../types';
 import { mockKanban } from '../data/mockData';
+import { coordenadasAproximadas } from '../utils/geo';
+
+// Preenche lat/lon em itens salvos antes desse campo existir (AsyncStorage
+// não é validado por schema — dado antigo sem coordenada travava o mapa em
+// Trechos com "Invalid LatLng object: (NaN, NaN)").
+function comCoordenadas(item: KanbanItem): KanbanItem {
+  if (typeof item.lat === 'number' && typeof item.lon === 'number' && !Number.isNaN(item.lat) && !Number.isNaN(item.lon)) {
+    return item;
+  }
+  return { ...item, ...coordenadasAproximadas(item.rodovia, item.kmInicio) };
+}
 
 const STORAGE_KEY = '@motiva:kanban';
 
@@ -37,7 +48,7 @@ export function KanbanProvider({ children }: { children: ReactNode }) {
 
         const parsed = JSON.parse(raw) as KanbanItem[];
         if (Array.isArray(parsed) && !ignore) {
-          setItens(parsed);
+          setItens(parsed.map(comCoordenadas));
         } else if (!ignore) {
           setItens(mockKanban);
         }

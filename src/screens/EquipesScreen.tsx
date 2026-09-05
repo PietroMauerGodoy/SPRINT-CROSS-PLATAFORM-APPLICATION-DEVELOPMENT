@@ -26,13 +26,14 @@ import { useKanban } from '../context/KanbanContext';
 import { useConfiguracoes } from '../context/ConfiguracoesContext';
 import { useAuth } from '../context/AuthContext';
 import { getEquipesVisiveis, podeGerenciarEquipes, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
+import { coordenadasAproximadas, corrigirComGeocodingSeNecessario } from '../utils/geo';
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
 import logoNeg    from '../../assets/images/Motiva_Logo-Negativo.png';
 import perfilLogo from '../../assets/images/perfil_logo.png';
 import perfilEq   from '../../assets/images/perfil_equipe.jpg';
 
 const ITENS_POR_PAGINA = 7;
-const RODOVIAS = ['Todas', 'BR-116', 'BR-381', 'SP-280'];
+const RODOVIAS = ['Todas', 'BR-116', 'BR-381', 'SP-330'];
 
 const STATUS_OPTS: { label: string; value: StatusEquipe | 'todas' }[] = [
   { label: 'Todas',    value: 'todas'    },
@@ -47,7 +48,7 @@ type Props = {
 
 export default function EquipesScreen({ navigation }: Props) {
 const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } = useEquipes();
-  const { adicionarItem, removerPorEquipeId } = useKanban();
+  const { adicionarItem, atualizarItem: atualizarItemKanban, removerPorEquipeId } = useKanban();
   const { modoCompacto, notifPrefs } = useConfiguracoes();
   const { usuario, logout } = useAuth();
   const equipesVisiveis = usuario ? getEquipesVisiveis(usuario, equipes) : equipes;
@@ -126,12 +127,16 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
       });
       // Nova equipe (ativo) → entra automaticamente na coluna 1 do Kanban
       const kmNum = parseFloat(novoKm.trim()) || 0;
-      adicionarItem({
+      const novoKanbanId = adicionarItem({
         equipeId: novoId, nomeEquipe: novoNome.trim(), rodovia: novoRodovia,
         kmInicio: kmNum, kmFim: kmNum + 5,
         tipoVegetacao: 'Grama Bermuda (Rasteira)', alturaAtual: 2,
         severidade: 'sem_ocorrencia', responsavel: novoResp.trim(),
         observacao: '', ultimoServico: null,
+        ...coordenadasAproximadas(novoRodovia, kmNum),
+      });
+      corrigirComGeocodingSeNecessario(novoRodovia, kmNum).then((corrigida) => {
+        if (corrigida) atualizarItemKanban(novoKanbanId, corrigida);
       });
       setPagina(1);
       adicionarNotificacao({
@@ -171,12 +176,16 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
     } else {
       // Volta para ativo: adiciona na coluna 1 do Kanban
       const kmNum = parseFloat(eq.km.replace('Km ', '')) || 0;
-      adicionarItem({
+      const novoKanbanId = adicionarItem({
         equipeId: id, nomeEquipe: eq.nome, rodovia: eq.rodovia,
         kmInicio: kmNum, kmFim: kmNum + 5,
         tipoVegetacao: 'Grama Bermuda (Rasteira)', alturaAtual: 2,
         severidade: 'sem_ocorrencia', responsavel: eq.responsavel,
         observacao: '', ultimoServico: null,
+        ...coordenadasAproximadas(eq.rodovia, kmNum),
+      });
+      corrigirComGeocodingSeNecessario(eq.rodovia, kmNum).then((corrigida) => {
+        if (corrigida) atualizarItemKanban(novoKanbanId, corrigida);
       });
     }
     if (notifPrefs.mudancaStatusEquipe) {
@@ -226,7 +235,7 @@ const { equipes, adicionarEquipe, editarEquipe, excluirEquipe, alternarStatus } 
               { icon: 'people-outline',    label: 'Equipes',      onPress: undefined,                                ativo: true  },
               { icon: 'albums-outline',    label: 'Kanban',       onPress: () => navigation.navigate('Kanban'),      ativo: false },
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },
-              { icon: 'map-outline',       label: 'Trechos',      onPress: undefined,                                ativo: false },
+              { icon: 'map-outline',       label: 'Trechos',      onPress: () => navigation.navigate('Trechos'),     ativo: false },
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                                ativo: false },
 { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
               { icon: 'settings-outline',  label: 'Config.',      onPress: () => navigation.navigate('Configuracoes'), ativo: false },
@@ -473,7 +482,7 @@ paginadas.map((eq, idx) => (
             <View style={s.mField}>
               <Text style={s.mLabel}>Rodovia</Text>
               <View style={s.chipRow}>
-                {['BR-116', 'BR-381', 'SP-280'].map((r) => (
+                {['BR-116', 'BR-381', 'SP-330'].map((r) => (
                   <TouchableOpacity key={r} style={[s.chip, novoRodovia === r && s.chipOn]} onPress={() => setNovoRodovia(r)}>
                     <Text style={[s.chipTxt, novoRodovia === r && s.chipTxtOn]}>{r}</Text>
                   </TouchableOpacity>

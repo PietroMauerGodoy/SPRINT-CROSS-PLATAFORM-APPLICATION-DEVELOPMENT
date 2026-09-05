@@ -50,7 +50,7 @@ export function podeCriarOuExcluirKanbanItem(usuario: Usuario): boolean {
   return temAcessoTotal(usuario);
 }
 
-export function podeCriarOcorrencia(usuario: Usuario): boolean {
+export function podeCriarOuExcluirOcorrencia(usuario: Usuario): boolean {
   return temAcessoTotal(usuario);
 }
 

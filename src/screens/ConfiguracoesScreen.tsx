@@ -68,7 +68,7 @@ export default function ConfiguracoesScreen({ navigation }: Props) {
               { icon: 'people-outline',    label: 'Equipes',      onPress: () => navigation.navigate('Equipes'), ativo: false },
               { icon: 'albums-outline',    label: 'Kanban',       onPress: () => navigation.navigate('Kanban'),  ativo: false },
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },
-              { icon: 'map-outline',       label: 'Trechos',      onPress: undefined,                           ativo: false },
+              { icon: 'map-outline',       label: 'Trechos',      onPress: () => navigation.navigate('Trechos'), ativo: false },
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                           ativo: false },
               { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                           ativo: false },
               { icon: 'settings-outline',  label: 'Config.',      onPress: undefined,                           ativo: true  },

@@ -24,6 +24,7 @@ import { useKanban } from '../context/KanbanContext';
 import { useEquipes } from '../context/EquipesContext';
 import { useAuth } from '../context/AuthContext';
 import { getKanbanItemsVisiveis, podeCriarOuExcluirKanbanItem, podeVerItemMenuOperacional, ITENS_MENU_SEM_TELA } from '../utils/permissions';
+import { coordenadasAproximadas, corrigirComGeocodingSeNecessario } from '../utils/geo';
 import AppHeader from '../components/AppHeader';
 
 import bgRoxo     from '../../assets/images/backgroundroxo.png';
@@ -46,13 +47,13 @@ const VEGETACAO_OPTS = [
   'Capim Napiê',
   'Mata Ciliar Densa',
 ];
-const RODOVIAS_FILTRO = ['Todas', 'BR-116', 'BR-381', 'SP-280'];
-const RODOVIAS_FORM   = ['BR-116', 'BR-381', 'SP-280'];
+const RODOVIAS_FILTRO = ['Todas', 'BR-116', 'BR-381', 'SP-330'];
+const RODOVIAS_FORM   = ['BR-116', 'BR-381', 'SP-330'];
 
 const RODOVIA_COR: Record<string, string> = {
   'BR-116': '#3B82F6',
   'BR-381': '#6366F1',
-  'SP-280': '#8B5CF6',
+  'SP-330': '#8B5CF6',
 };
 const VEG_COR: Record<string, string> = {
   'Grama Bermuda (Rasteira)': '#22C55E',
@@ -423,24 +424,36 @@ export default function KanbanScreen({ navigation, route }: Props) {
     const sev: SeveridadeVegetacao = fAltura.trim() ? calcSeveridade(alt) : 'leve';
     const ult = fData.trim() ? { data: fData.trim(), responsavel: fUltResp.trim() } : null;
     setModalCriar(false);
+    const kmInicioNum = parseFloat(fKmInicio) || 0;
     if (itemEditando) {
+      const rodoviaMudou = itemEditando.rodovia !== fRodovia || itemEditando.kmInicio !== kmInicioNum;
       atualizarItem(itemEditando.id, {
         nomeEquipe: fEquipe.trim(), rodovia: fRodovia,
-        kmInicio: parseFloat(fKmInicio) || 0, kmFim: parseFloat(fKmFim) || 0,
+        kmInicio: kmInicioNum, kmFim: parseFloat(fKmFim) || 0,
         tipoVegetacao: fVegetacao, alturaAtual: alt, severidade: sev,
         responsavel: fResponsavel.trim(), ultimoServico: ult,
+        ...(rodoviaMudou ? coordenadasAproximadas(fRodovia, kmInicioNum) : {}),
       });
+      if (rodoviaMudou) {
+        corrigirComGeocodingSeNecessario(fRodovia, kmInicioNum).then((corrigida) => {
+          if (corrigida) atualizarItem(itemEditando.id, corrigida);
+        });
+      }
       adicionarNotificacao({
         cor: '#3B82F6', icone: 'create-outline',
         titulo: 'Card atualizado',
         desc: `Dados de "${fEquipe.trim()}" foram atualizados no Kanban.`,
       });
     } else {
-      adicionarItem({
+      const novoId = adicionarItem({
         equipeId: '', nomeEquipe: fEquipe.trim(), rodovia: fRodovia,
-        kmInicio: parseFloat(fKmInicio) || 0, kmFim: parseFloat(fKmFim) || 0,
+        kmInicio: kmInicioNum, kmFim: parseFloat(fKmFim) || 0,
         tipoVegetacao: fVegetacao, alturaAtual: alt, severidade: sev,
         responsavel: fResponsavel.trim(), observacao: '', ultimoServico: ult,
+        ...coordenadasAproximadas(fRodovia, kmInicioNum),
+      });
+      corrigirComGeocodingSeNecessario(fRodovia, kmInicioNum).then((corrigida) => {
+        if (corrigida) atualizarItem(novoId, corrigida);
       });
       adicionarNotificacao({
         cor: '#10B981', icone: 'add-circle-outline',
@@ -491,7 +504,7 @@ export default function KanbanScreen({ navigation, route }: Props) {
               { icon: 'people-outline',    label: 'Equipes',      onPress: () => navigation.navigate('Equipes'),     ativo: false },
               { icon: 'albums-outline',    label: 'Kanban',       onPress: undefined,                                ativo: true  },
               { icon: 'warning-outline',   label: 'Ocorrências',  onPress: () => navigation.navigate('Ocorrencias'), ativo: false },
-              { icon: 'map-outline',       label: 'Trechos',      onPress: undefined,                                ativo: false },
+              { icon: 'map-outline',       label: 'Trechos',      onPress: () => navigation.navigate('Trechos'),     ativo: false },
               { icon: 'calendar-outline',  label: 'Planejamento', onPress: undefined,                                ativo: false },
               { icon: 'bar-chart-outline', label: 'Relatórios',   onPress: undefined,                                ativo: false },
               { icon: 'settings-outline',  label: 'Config.',      onPress: () => navigation.navigate('Configuracoes'), ativo: false },

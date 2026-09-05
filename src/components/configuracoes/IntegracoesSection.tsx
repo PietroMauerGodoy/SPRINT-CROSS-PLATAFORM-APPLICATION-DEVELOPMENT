@@ -5,7 +5,7 @@ import { colors } from '../../theme';
 import { useConfiguracoes } from '../../context/ConfiguracoesContext';
 import { useToast } from '../toast/ToastContext';
 import SectionCard from './SectionCard';
-import { mockOcorrencias, mockEquipes } from '../../data/mockData';
+import { mockOcorrencias, mockEquipes, mockKanban } from '../../data/mockData';
 
 export default function IntegracoesSection() {
   const { apiClimaConectada, setApiClimaConectada, registrarAtividade } = useConfiguracoes();
@@ -28,7 +28,9 @@ export default function IntegracoesSection() {
     const linhas: string[] = [];
     linhas.push('Tipo;Item;Metadados;Status');
     mockOcorrencias.forEach((o) => {
-      linhas.push(`Ocorrência;${o.titulo};${o.local} (${o.categoria});risco ${o.risco}`);
+      const trecho = mockKanban.find((k) => k.id === o.kanbanItemId);
+      const localTxt = trecho ? `${trecho.rodovia} Km ${trecho.kmInicio}-${trecho.kmFim}` : 'trecho não encontrado';
+      linhas.push(`Ocorrência;${o.titulo};${localTxt} (${o.categoria});risco ${o.risco}`);
     });
     mockEquipes.forEach((e) => {
       linhas.push(`Equipe;${e.nome};${e.rodovia} ${e.km};${e.status}`);

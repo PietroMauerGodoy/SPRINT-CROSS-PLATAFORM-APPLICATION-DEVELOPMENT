@@ -58,7 +58,7 @@ export default function DashboardScreen({ navigation }: Props) {
               { icon: 'people-outline',    label: 'Equipes',      ativo: false, onPress: () => navigation.navigate('Equipes') },
               { icon: 'albums-outline',    label: 'Kanban',       ativo: false, onPress: () => navigation.navigate('Kanban') },
               { icon: 'warning-outline',   label: 'Ocorrências',  ativo: false, onPress: () => navigation.navigate('Ocorrencias') },
-              { icon: 'map-outline',       label: 'Trechos',      ativo: false, onPress: undefined },
+              { icon: 'map-outline',       label: 'Trechos',      ativo: false, onPress: () => navigation.navigate('Trechos') },
               { icon: 'calendar-outline',  label: 'Planejamento', ativo: false, onPress: undefined },
               { icon: 'bar-chart-outline', label: 'Relatórios',   ativo: false, onPress: undefined },
               { icon: 'settings-outline',  label: 'Config.',      ativo: false, onPress: () => navigation.navigate('Configuracoes') },

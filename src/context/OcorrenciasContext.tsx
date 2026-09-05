@@ -1,11 +1,19 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { Ocorrencia } from '../types';
-import { adicionarOcorrencia as adicionarOcorrenciaService, atualizarOcorrencia as atualizarOcorrenciaService, buscarOcorrenciaPorId, carregarOcorrencias, listarOcorrencias } from '../services/ocorrenciasService';
+import {
+  adicionarOcorrencia as adicionarOcorrenciaService,
+  atualizarOcorrencia as atualizarOcorrenciaService,
+  removerOcorrencia as removerOcorrenciaService,
+  buscarOcorrenciaPorId,
+  carregarOcorrencias,
+  listarOcorrencias,
+} from '../services/ocorrenciasService';
 
 type OcorrenciasContextType = {
   ocorrencias: Ocorrencia[];
   adicionarOcorrencia: (o: Omit<Ocorrencia, 'id'>) => Promise<number>;
   atualizarOcorrencia: (id: number, dados: Partial<Ocorrencia>) => Promise<void>;
+  removerOcorrencia: (id: number) => Promise<void>;
   buscarPorId: (id: number) => Ocorrencia | undefined;
 };
 
@@ -42,12 +50,25 @@ export function OcorrenciasProvider({ children }: { children: ReactNode }) {
     setOcorrencias(await listarOcorrencias());
   }
 
+  async function remover(id: number): Promise<void> {
+    await removerOcorrenciaService(id);
+    setOcorrencias(await listarOcorrencias());
+  }
+
   function buscarPorId(id: number): Ocorrencia | undefined {
     return buscarOcorrenciaPorId(id) ?? ocorrencias.find((item) => item.id === id);
   }
 
   return (
-    <OcorrenciasContext.Provider value={{ ocorrencias, adicionarOcorrencia: adicionar, atualizarOcorrencia: atualizar, buscarPorId }}>
+    <OcorrenciasContext.Provider
+      value={{
+        ocorrencias,
+        adicionarOcorrencia: adicionar,
+        atualizarOcorrencia: atualizar,
+        removerOcorrencia: remover,
+        buscarPorId,
+      }}
+    >
       {children}
     </OcorrenciasContext.Provider>
   );
